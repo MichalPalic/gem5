@@ -543,7 +543,10 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
                                 inst->seqNum, ld_inst->seqNum, ld_eff_addr1);
                         memDepViolator = ld_inst;
 
-                        ++stats.memOrderViolation;
+                        //Michal: Hack to only count executed loads
+                        if (ld_inst->isExecuted()){
+                            ++stats.memOrderViolation;
+                        }
 
                         return std::make_shared<GenericISA::M5PanicFault>(
                             "Detected fault with inst [sn:%lli] and "

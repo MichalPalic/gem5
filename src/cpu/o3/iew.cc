@@ -1355,7 +1355,10 @@ IEW::executeInsts()
                 DPRINTF(IEW, "Violation will not be handled because "
                         "already squashing\n");
 
-                ++iewStats.memOrderViolationEvents;
+                //Michal: Do not count memorderviolation event if we're already
+                //squashing for other reason
+
+                //++iewStats.memOrderViolationEvents;
             }
         }
     }
