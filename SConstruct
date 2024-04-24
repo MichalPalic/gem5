@@ -145,6 +145,8 @@ AddOption('--gprof', action='store_true',
           help='Enable support for the gprof profiler')
 AddOption('--pprof', action='store_true',
           help='Enable support for the pprof profiler')
+AddOption('--force-clang', action='store_true',
+          help='Compile with clang 17')
 
 # Inject the built_tools directory into the python path.
 sys.path[1:1] = [ Dir('#build_tools').abspath ]
@@ -174,13 +176,20 @@ Export('MakeAction')
 #
 ########################################################################
 
-main = Environment(tools=[
-        'default', 'git', TempFileSpawn, EnvDefaults, MakeActionTool,
-        ConfigFile, AddLocalRPATH, SwitchingHeaders, TagImpliesTool, Blob
-    ])
+if GetOption('force_clang'):
+    main = Environment(tools=[
+            'default', 'git', TempFileSpawn, EnvDefaults, MakeActionTool,
+            ConfigFile, AddLocalRPATH, SwitchingHeaders, TagImpliesTool, Blob
+        ], CC='clang', CXX='clang++')
 
-main.Tool(SCons.Tool.FindTool(['gcc', 'clang'], main))
-main.Tool(SCons.Tool.FindTool(['g++', 'clang++'], main))
+else:
+    main = Environment(tools=[
+            'default', 'git', TempFileSpawn, EnvDefaults, MakeActionTool,
+            ConfigFile, AddLocalRPATH, SwitchingHeaders, TagImpliesTool, Blob
+        ])
+    main.Tool(SCons.Tool.FindTool(['gcc', 'clang'], main))
+    main.Tool(SCons.Tool.FindTool(['g++', 'clang++'], main))
+
 
 Export('main')
 
