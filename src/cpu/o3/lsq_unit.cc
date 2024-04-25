@@ -543,9 +543,27 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
                                 inst->seqNum, ld_inst->seqNum, ld_eff_addr1);
                         memDepViolator = ld_inst;
 
+                        DPRINTF(FYPDebug, "Detected fault with inst [sn:%llu]"
+                        "[%s] and [sn:%llu] [%s] at address %#x\n",
+                        inst->seqNum, inst->isLoad() ? "load" : "not load",
+                        ld_inst->seqNum,
+                        ld_inst->isLoad() ? "load" : "not load", ld_eff_addr1);
+
+                        DPRINTF(FYPDebug, "Detected fault with inst"
+                        "[%lli:%lli] and [%lli:%lli]\n",
+                        inst->pcState().instAddr(), inst->n_visited,
+                        ld_inst->pcState().instAddr(), ld_inst->n_visited);
+
+                                ld_inst->mem_violator = 1;
+                                memDepViolator = ld_inst;
+
                         //Michal: Hack to only count executed loads
                         if (ld_inst->isExecuted()){
                             ++stats.memOrderViolation;
+                        }
+
+                        if (!ld_inst->isExecuted()){
+                            DPRINTF(LSQUnit, "Counting unexecuted load");
                         }
 
                         return std::make_shared<GenericISA::M5PanicFault>(
@@ -571,7 +589,19 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
                 DPRINTF(LSQUnit, "Detected fault with inst [sn:%lli] and "
                         "[sn:%lli] at address %#x\n",
                         inst->seqNum, ld_inst->seqNum, ld_eff_addr1);
+
+                DPRINTF(FYPDebug, "Detected fault with inst [sn:%lli] [%s]"
+                "and [sn:%lli] [%s] at address %#x\n",
+                inst->seqNum, inst->isLoad() ? "load" : "not load",
+                ld_inst->seqNum, ld_inst->isLoad() ? "load" : "not load",
+                ld_eff_addr1);
+
+                DPRINTF(FYPDebug, "Detected fault with inst [%lli:%lli] and "
+                "[%lli:%lli]\n", inst->pcState().instAddr(), inst->n_visited,
+                ld_inst->pcState().instAddr(), ld_inst->n_visited);
+
                 memDepViolator = ld_inst;
+                ld_inst->mem_violator = 1;
 
                 ++stats.memOrderViolation;
 
