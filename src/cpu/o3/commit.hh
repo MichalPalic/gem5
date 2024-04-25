@@ -53,6 +53,7 @@
 #include "cpu/o3/rename_map.hh"
 #include "cpu/o3/rob.hh"
 #include "cpu/timebuf.hh"
+#include "debug/FYPDebug.hh"
 #include "enums/CommitPolicy.hh"
 #include "sim/probe/probe.hh"
 

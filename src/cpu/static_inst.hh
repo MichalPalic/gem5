@@ -250,6 +250,7 @@ class StaticInst : public RefCounted, public StaticInstFlags
         _destRegIdxPtr = dest;
     }
 
+  public:
     /**
      * Base mnemonic (e.g., "add").  Used by generateDisassembly()
      * methods.  Also useful to readily identify instructions from
@@ -257,6 +258,8 @@ class StaticInst : public RefCounted, public StaticInstFlags
      * initialized.
      */
     const char *mnemonic;
+
+  protected:
 
     /**
      * String representation of disassembly (lazily evaluated via
