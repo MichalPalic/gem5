@@ -47,6 +47,8 @@ namespace gem5
     void insert_from_rob(const o3::DynInstPtr &inst);
     void remove_squashed(const o3::DynInstPtr &inst);
     void remove_comitted(const o3::DynInstPtr &inst);
+    void dump_in_flight();
+    void dump_rob();
 
   };
 

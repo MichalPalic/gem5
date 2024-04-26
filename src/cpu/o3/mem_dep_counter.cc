@@ -127,4 +127,23 @@ void MemDepCounter::remove_comitted(const o3::DynInstPtr &inst){
 
 };
 
+void MemDepCounter::dump_in_flight(){
+  for (auto it = in_flight.begin(); it != in_flight.end(); it++){
+
+    DPRINTF(FYPDebug,"MemTracer in flight: %u:%u, seqnum %u, effadr %u \n",
+      (*it)->pcState().instAddr(), (*it)->n_visited, (*it)->seqNum,
+      (*it)->effAddr);
+  }
+}
+
+void MemDepCounter::dump_rob(){
+  for (auto it = cpu->rob.instList[0].begin();
+    it != cpu->rob.instList[0].end(); it++){
+
+    DPRINTF(FYPDebug,"MemTracer ROB: %u:%u, seqnum %u, effadr %u \n",
+      (*it)->pcState().instAddr(), (*it)->n_visited, (*it)->seqNum,
+      (*it)->effAddr);
+  }
+}
+
 } // namespace gem5
