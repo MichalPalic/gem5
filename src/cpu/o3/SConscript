@@ -56,6 +56,7 @@ if env['CONF']['TARGET_ISA'] != 'null':
     Source('store_set.cc')
     Source('thread_context.cc')
     Source('thread_state.cc')
+    Source('mem_dep_counter.cc')
 
     DebugFlag('CommitRate')
     DebugFlag('IEW')

@@ -1016,6 +1016,9 @@ Commit::commitInsts()
                 head_inst->fault->name());
             }
 
+            //Update memory dependence counting state machine
+            cpu->mem_dep_counter.remove_squashed(head_inst);
+
             rob->retireHead(commit_thread);
 
             ++stats.commitSquashedInsts;
@@ -1040,6 +1043,8 @@ Commit::commitInsts()
                 head_inst->pcState().instAddr(), head_inst->n_visited,
                 head_inst->seqNum, head_inst->effAddr, tid);
 
+                //Update memory dependence counting state machine
+                cpu->mem_dep_counter.remove_comitted(head_inst);
 
                 // hardware transactional memory
 

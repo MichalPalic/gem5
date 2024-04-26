@@ -202,6 +202,9 @@ ROB::insertInst(const DynInstPtr &inst)
 
     DPRINTF(ROB, "Adding inst PC %s to the ROB.\n", inst->pcState());
 
+    //Update counters of state machine
+    cpu->mem_dep_counter.insert_from_rob(inst);
+
     assert(numInstsInROB != numEntries);
 
     ThreadID tid = inst->threadNumber;

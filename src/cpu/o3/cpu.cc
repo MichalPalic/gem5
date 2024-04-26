@@ -72,6 +72,7 @@ namespace o3
 
 CPU::CPU(const BaseO3CPUParams &params)
     : BaseCPU(params),
+      mem_dep_counter(this, params),
       mmu(params.mmu),
       tickEvent([this]{ tick(); }, "O3CPU tick",
                 false, Event::CPU_Tick_Pri),
@@ -368,7 +369,9 @@ CPU::CPUStats::CPUStats(CPU *cpu)
       ADD_STAT(miscRegfileReads, statistics::units::Count::get(),
                "number of misc regfile reads"),
       ADD_STAT(miscRegfileWrites, statistics::units::Count::get(),
-               "number of misc regfile writes")
+               "number of misc regfile writes"),
+      ADD_STAT(smMemOrderViolations, statistics::units::Count::get(),
+              "Number of memory order violations by state machine definition.")
 {
     // Register any of the O3CPU's stats here.
     timesIdled

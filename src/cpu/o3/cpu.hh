@@ -52,6 +52,8 @@
 #include "arch/generic/pcstate.hh"
 #include "base/statistics.hh"
 #include "config/the_isa.hh"
+#include "cpu/activity.hh"
+#include "cpu/base.hh"
 #include "cpu/o3/comm.hh"
 #include "cpu/o3/commit.hh"
 #include "cpu/o3/decode.hh"
@@ -60,12 +62,11 @@
 #include "cpu/o3/free_list.hh"
 #include "cpu/o3/iew.hh"
 #include "cpu/o3/limits.hh"
+#include "cpu/o3/mem_dep_counter.hh"
 #include "cpu/o3/rename.hh"
 #include "cpu/o3/rob.hh"
 #include "cpu/o3/scoreboard.hh"
 #include "cpu/o3/thread_state.hh"
-#include "cpu/activity.hh"
-#include "cpu/base.hh"
 #include "cpu/simple_thread.hh"
 #include "cpu/timebuf.hh"
 #include "params/BaseO3CPU.hh"
@@ -108,6 +109,7 @@ class CPU : public BaseCPU
         SwitchedOut
     };
 
+    MemDepCounter mem_dep_counter;
     BaseMMU *mmu;
     using LSQRequest = LSQ::LSQRequest;
 
@@ -614,6 +616,8 @@ class CPU : public BaseCPU
         //number of misc
         statistics::Scalar miscRegfileReads;
         statistics::Scalar miscRegfileWrites;
+        /** Number of memory order violations by state machine definition. */
+        statistics::Scalar smMemOrderViolations;
     } cpuStats;
 
   public:
