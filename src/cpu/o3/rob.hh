@@ -286,9 +286,11 @@ class ROB
     /** Max Insts a Thread Can Have in the ROB */
     unsigned maxEntries[MaxThreads];
 
+  public:
     /** ROB List of Instructions */
     std::list<DynInstPtr> instList[MaxThreads];
 
+  private:
     /** Number of instructions that can be squashed in a single cycle. */
     unsigned squashWidth;
 

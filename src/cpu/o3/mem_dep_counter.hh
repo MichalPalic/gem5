@@ -1,6 +1,6 @@
 
-#ifndef __CPU_MEM_DEP_ORACLE_HH__
-#define __CPU_MEM_DEP_ORACLE_HH__
+#ifndef __CPU_MEM_DEP_COUNTER_HH__
+#define __CPU_MEM_DEP_COUNTER_HH__
 
 #include <fstream>
 #include <iostream>
@@ -54,4 +54,35 @@ namespace gem5
 
 }
 
-#endif // __CPU_MEM_DEP_ORACLE_HH__
+//Common helper classes
+//Setup to allow TraceUID to be used as hashmap key
+struct TraceUID
+{
+  gem5::Addr pc;
+  uint64_t n_visited;
+
+  TraceUID(){}
+  TraceUID(gem5::Addr pc, uint64_t n_visited): pc(pc), n_visited(n_visited){}
+
+  bool operator==(const TraceUID &other) const
+    {
+      return (pc == other.pc && n_visited == other.n_visited);
+    }
+};
+
+  template<>
+  struct std::hash<TraceUID>
+  {
+    std::size_t operator()(const TraceUID& t) const noexcept
+    {
+      std::size_t h1 = std::hash<uint64_t>{}(t.pc);
+      std::size_t h2 = std::hash<uint64_t>{}(t.n_visited);
+      return h1 ^ (h2 << 1);
+    }
+  };
+
+  namespace std {
+    string to_string(const TraceUID &t);
+  }
+
+  #endif // __CPU_MEM_DEP_COUNTER_HH__

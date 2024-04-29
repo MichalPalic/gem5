@@ -147,3 +147,10 @@ void MemDepCounter::dump_rob(){
 }
 
 } // namespace gem5
+
+
+namespace std {
+    string to_string(const TraceUID &t){
+        return to_string(t.pc) + ':' + to_string(t.n_visited);
+    }
+}

@@ -428,9 +428,11 @@ class CPU : public BaseCPU
     /** The commit rename map. */
     UnifiedRenameMap commitRenameMap[MaxThreads];
 
+    public:
     /** The re-order buffer. */
     ROB rob;
 
+    protected:
     /** Active Threads List */
     std::list<ThreadID> activeThreads;
 
