@@ -36,6 +36,10 @@ MemDepCounter::MemDepCounter(o3::CPU *_cpu, const BaseO3CPUParams &params)
 
 void MemDepCounter::insert_from_rob(const o3::DynInstPtr &inst){
 
+  //Print heartbeat
+  if (inst->seqNum % 1000000 == 0)
+  printf("Heartbeat: %llu \n", inst->seqNum);
+
   //Filter anything that aren't memory operations
   if (!(inst->isLoad() || inst->isStore() || inst->isAtomic())){
     return;
