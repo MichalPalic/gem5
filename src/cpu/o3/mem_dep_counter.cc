@@ -93,8 +93,9 @@ void MemDepCounter::remove_squashed(const o3::DynInstPtr &inst){
   for (auto it = in_flight.begin(); it != in_flight.end(); it++){
     if ((*it)->pcState().instAddr() == pc &&
       (*it)->n_visited > inst_n_visited){
-        DPRINTF(FYPDebug,"MemCounter decrement: PC: %u, Visited %u, seqnum %u,\
-        effadr %u \n", (*it)->pcState().instAddr() , (*it)->n_visited,
+        DPRINTF(FYPDebug,"MemCounter decrement: PC: %llu, Visited %llu,"
+        "seqnum %llu, effadr %llx \n",
+        (*it)->pcState().instAddr() , (*it)->n_visited,
         (*it)->seqNum, (*it)->effAddr);
       (*it)->n_visited--;
     }
@@ -109,24 +110,27 @@ void MemDepCounter::remove_squashed(const o3::DynInstPtr &inst){
 
 void MemDepCounter::remove_comitted(const o3::DynInstPtr &inst){
 
-    //Filter anything that aren't memory operations
-    if (!(inst->isLoad() || inst->isStore() || inst->isAtomic())){
-      return;
-    }
-
     //Memviolation state machine
     if (sm_state == SmState::Possible){
-        if (sm_pc == inst->pcState().instAddr() &&
-            sm_n_visited == inst->n_visited &&
-            sm_address == inst->effAddr){
-            cpu->cpuStats.smMemOrderViolations++;
+        if (inst->isLoad() || inst->isStore() || inst->isAtomic()){
+          if (sm_pc == inst->pcState().instAddr() &&
+              sm_n_visited == inst->n_visited &&
+              sm_address == inst->effAddr){
+              cpu->cpuStats.smMemOrderViolations++;
 
-            DPRINTF(FYPDebug, "MemCounter SM violation: [sn:%llu] [%lli:%lli]\
-            [%s] at address %llx \n", inst->seqNum, inst->pcState().instAddr(),
-            inst->n_visited, inst->isLoad() ? "load" : "not load",
-            inst->effAddr );
+              DPRINTF(FYPDebug, "MemCounter SM violation: [sn:%llu] "
+              "[%lli:%lli] [%s] at address %llx \n", inst->seqNum,
+              inst->pcState().instAddr(),
+              inst->n_visited, inst->isLoad() ? "load" : "not load",
+              inst->effAddr );
+          }
         }
         sm_state = SmState::Idle;
+    }
+
+    //Filter anything that aren't memory operations from this point onwards
+    if (!(inst->isLoad() || inst->isStore() || inst->isAtomic())){
+      return;
     }
 
     assert(inst->seqNum == in_flight.front()->seqNum);
@@ -139,7 +143,8 @@ void MemDepCounter::remove_comitted(const o3::DynInstPtr &inst){
 void MemDepCounter::dump_in_flight(){
   for (auto it = in_flight.begin(); it != in_flight.end(); it++){
 
-    DPRINTF(FYPDebug,"MemTracer in flight: %u:%u, seqnum %u, effadr %u \n",
+    DPRINTF(FYPDebug,"MemTracer in flight: %llu:%llu, seqnum %llu, "
+    "effadr %llx \n",
       (*it)->pcState().instAddr(), (*it)->n_visited, (*it)->seqNum,
       (*it)->effAddr);
   }

@@ -1005,8 +1005,8 @@ Commit::commitInsts()
                     "ROB.\n");
 
 
-            DPRINTF(FYPDebug,"Commit squashed: %s %u:%u, seqnum %u,"
-            "effadr %u, tid %u , violator %u\n",
+            DPRINTF(FYPDebug,"Commit squashed: %s %llu:%llu, seqnum %llu,"
+            "effadr %llx, tid %llu , violator %llu\n",
             head_inst->staticInst->mnemonic, head_inst->pcState().instAddr(),
             head_inst->n_visited, head_inst->seqNum, head_inst->effAddr, tid,
             head_inst->mem_violator);
@@ -1038,8 +1038,8 @@ Commit::commitInsts()
                 stats.committedInstType[tid][head_inst->opClass()]++;
                 ppCommit->notify(head_inst);
 
-                DPRINTF(FYPDebug,"Commit ok: %s %u:%u, seqnum %u,"
-                "effadr %u, tid %u\n", head_inst->staticInst->mnemonic,
+                DPRINTF(FYPDebug,"Commit ok: %s %llu:%llu, seqnum %llu,"
+                "effadr %llx, tid %llu\n", head_inst->staticInst->mnemonic,
                 head_inst->pcState().instAddr(), head_inst->n_visited,
                 head_inst->seqNum, head_inst->effAddr, tid);
 
