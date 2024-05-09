@@ -120,6 +120,11 @@ void MemDepCounter::remove_comitted(const o3::DynInstPtr &inst){
             sm_n_visited == inst->n_visited &&
             sm_address == inst->effAddr){
             cpu->cpuStats.smMemOrderViolations++;
+
+            DPRINTF(FYPDebug, "MemCounter SM violation: [sn:%llu] [%lli:%lli]\
+            [%s] at address %llx \n", inst->seqNum, inst->pcState().instAddr(),
+            inst->n_visited, inst->isLoad() ? "load" : "not load",
+            inst->effAddr );
         }
         sm_state = SmState::Idle;
     }
