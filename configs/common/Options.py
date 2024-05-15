@@ -372,6 +372,16 @@ def addCommonOptions(parser):
     parser.add_argument(
         "-s", "--standard-switch", action="store", type=int, default=None,
         help="switch from timing to Detailed CPU after warmup period of <N>")
+
+    parser.add_argument("--checkpoint-with-cpu", action="store",
+                        default=None,
+                        choices=ObjectList.cpu_list.get_names(),
+                        help="cpu type for restoring from a checkpoint")
+
+    parser.add_argument("--checkpoint-with-cpu-n", action="store",
+                    type=int, default=None,
+                    help="Specify which checkpoint to take")
+
     parser.add_argument("-p", "--prog-interval", type=str,
                         help="CPU Progress Interval")
 

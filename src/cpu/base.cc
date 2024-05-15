@@ -649,7 +649,11 @@ BaseCPU::unserialize(CheckpointIn &cp)
     UNSERIALIZE_SCALAR(instCnt);
 
     if (!_switchedOut) {
-        UNSERIALIZE_SCALAR(_pid);
+
+        //HACK: Fails to properly unserialize pid, but in SE PID is always
+        //just 0
+        //UNSERIALIZE_SCALAR(_pid);
+        _pid = 0;
 
         // Unserialize the threads, this is done by the CPU implementation.
         for (ThreadID i = 0; i < numThreads; ++i) {
