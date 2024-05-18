@@ -618,8 +618,53 @@ class CPU : public BaseCPU
         //number of misc
         statistics::Scalar miscRegfileReads;
         statistics::Scalar miscRegfileWrites;
+
         /** Number of memory order violations by state machine definition. */
         statistics::Scalar smMemOrderViolations;
+
+        /** Number of mispredictions in MDP due to no barrier. */
+        statistics::Scalar smMDPMispredictionsCold;
+
+        /** Number of mispredictions in MDP due to wrong barrier. */
+        statistics::Scalar smMDPMispredictionsFalse;
+
+        /** Number of correct predictions with no barrier. */
+        statistics::Scalar smMDPOKNoPred;
+
+        /**  Number of correct predictions with barrier. */
+        statistics::Scalar smMDPOKPred;
+
+        /**  Number of correct predictions with bad barrier. */
+        statistics::Scalar smMDPOKBadPred;
+
+        /** Number of load uops executed. */
+        statistics::Scalar smLoads;
+
+        /** Number of store uops executed. */
+        statistics::Scalar smStores;
+
+        /** Number of loads squashed at commit */
+        statistics::Scalar smSquashedLoads;
+
+        /** Number of stores squashed at commit. */
+        statistics::Scalar smSquashedStores;
+
+        /** Number of Loads triggering mem order violations */
+        statistics::Scalar smTriggeringLoads;
+
+        /** Number of stores triggering mem order violations. */
+        statistics::Scalar smTriggeringStores;
+
+
+        /** Number of uops seen by state machine */
+        statistics::Scalar smUops;
+
+        /** Number of squashed uops seen by sm. */
+        statistics::Scalar smSquashedUops;
+
+        /** Number of uops per memdep squash. */
+        statistics::Distribution  smSquashedMemDepUops;
+
     } cpuStats;
 
   public:

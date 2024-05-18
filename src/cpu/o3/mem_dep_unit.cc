@@ -221,6 +221,7 @@ MemDepUnit::insert(const DynInstPtr &inst)
                                 std::end(storeBarrierSNs));
     } else {
         InstSeqNum dep = depPred.checkInst(inst->pcState().instAddr());
+        inst->predictedDep = dep;
         if (dep != 0)
             producing_stores.push_back(dep);
     }

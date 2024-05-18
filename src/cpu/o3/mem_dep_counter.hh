@@ -33,10 +33,13 @@ namespace gem5
     Addr sm_pc = 0;
     uint64_t sm_n_visited = 0;
     Addr sm_address = 0;
+    uint64_t sm_seqnum = 0;
+    uint64_t sm_dep = 0;
 
     o3::CPU* cpu;
 
     std::unordered_map<Addr, uint64_t> n_visited;
+    std::map<uint64_t, Addr> inst_history;
 
     std::list<o3::DynInstPtr> in_flight;
 

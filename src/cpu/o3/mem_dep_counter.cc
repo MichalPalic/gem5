@@ -71,6 +71,19 @@ void MemDepCounter::insert_from_rob(const o3::DynInstPtr &inst){
 
 void MemDepCounter::remove_squashed(const o3::DynInstPtr &inst){
 
+      //Stats
+    if (inst->isLoad()){
+      cpu->cpuStats.smLoads++;
+      cpu->cpuStats.smSquashedLoads++;
+    } else if (inst->isStore() || inst->isAtomic()){
+      cpu->cpuStats.smStores++;
+      cpu->cpuStats.smSquashedStores++;
+    }
+
+    cpu->cpuStats.smUops++;
+    cpu->cpuStats.smSquashedUops++;
+
+
   //Filter anything that aren't memory operations
   if (!(inst->isLoad() || inst->isStore() || inst->isAtomic())){
     return;
@@ -82,6 +95,8 @@ void MemDepCounter::remove_squashed(const o3::DynInstPtr &inst){
       sm_pc = inst->pcState().instAddr();
       sm_n_visited = inst->n_visited;
       sm_address = inst->effAddr;
+      sm_seqnum = inst->seqNum;
+      sm_dep = inst->predictedDep;
   }
 
   assert(inst->seqNum == in_flight.front()->seqNum);
@@ -110,20 +125,47 @@ void MemDepCounter::remove_squashed(const o3::DynInstPtr &inst){
 
 void MemDepCounter::remove_comitted(const o3::DynInstPtr &inst){
 
+    //Stats
+    if (inst->isLoad()){
+      cpu->cpuStats.smLoads++;
+    } else if (inst->isStore() || inst->isAtomic()){
+      cpu->cpuStats.smStores++;
+    }
+
+    cpu->cpuStats.smUops++;
+    bool is_memviolation = false;
+
     //Memviolation state machine
     if (sm_state == SmState::Possible){
         if (inst->isLoad() || inst->isStore() || inst->isAtomic()){
           if (sm_pc == inst->pcState().instAddr() &&
               sm_n_visited == inst->n_visited &&
               sm_address == inst->effAddr){
-              cpu->cpuStats.smMemOrderViolations++;
+                cpu->cpuStats.smMemOrderViolations++;
+                is_memviolation = true;
 
-              DPRINTF(FYPDebug, "MemCounter SM violation: [sn:%llu] "
-              "[%lli:%lli] [%s] at address %llx \n", inst->seqNum,
-              inst->pcState().instAddr(),
-              inst->n_visited, inst->isLoad() ? "load" : "not load",
-              inst->effAddr );
-          }
+                DPRINTF(FYPDebug, "MemCounter SM violation: [sn:%llu] "
+                "[%lli:%lli] [%s] at address %llx \n", inst->seqNum,
+                inst->pcState().instAddr(),
+                inst->n_visited, inst->isLoad() ? "load" : "not load",
+                inst->effAddr );
+
+                  //Stats
+                if (inst->isLoad()){
+                  cpu->cpuStats.smTriggeringLoads++;
+                } else if (inst->isStore() || inst->isAtomic()){
+                  cpu->cpuStats.smTriggeringStores++;
+                }
+
+                if (sm_dep){
+                  cpu->cpuStats.smMDPMispredictionsFalse++;
+                } else{
+                  cpu->cpuStats.smMDPMispredictionsCold++;
+                }
+
+                cpu->cpuStats.smSquashedMemDepUops
+                  .sample(inst->seqNum-sm_seqnum);
+              }
         }
         sm_state = SmState::Idle;
     }
@@ -138,6 +180,31 @@ void MemDepCounter::remove_comitted(const o3::DynInstPtr &inst){
     //Remove committed inst
     in_flight.pop_front();
 
+    //MDP stats
+    if (inst->isStore() || inst->isAtomic()){
+    inst_history.insert(std::pair<uint64_t, Addr>(inst->seqNum,
+      inst->effAddr >> 4));
+    }
+
+    if (inst->isLoad() && !is_memviolation){
+      if (inst->predictedDep != 0){
+        if (inst_history.count(inst->predictedDep)){
+          if (inst_history[inst->predictedDep] == inst->effAddr >> 4){
+            cpu->cpuStats.smMDPOKPred++;
+          } else{
+            cpu->cpuStats.smMDPOKBadPred++;
+          }
+        } else {
+          cpu->cpuStats.smMDPOKBadPred++;
+        }
+      }else{
+        cpu->cpuStats.smMDPOKNoPred++;
+      }
+    }
+
+    if (inst_history.size()> 10000){
+      inst_history.erase(prev(inst_history.end()));
+    }
 };
 
 void MemDepCounter::dump_in_flight(){

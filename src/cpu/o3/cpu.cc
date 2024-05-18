@@ -371,7 +371,44 @@ CPU::CPUStats::CPUStats(CPU *cpu)
       ADD_STAT(miscRegfileWrites, statistics::units::Count::get(),
                "number of misc regfile writes"),
       ADD_STAT(smMemOrderViolations, statistics::units::Count::get(),
-              "Number of memory order violations by state machine definition.")
+          "Number of memory order violations by state machine definition."),
+      ADD_STAT(smMDPMispredictionsCold, statistics::units::Count::get(),
+      "Number of mispredictions in MDP due to no barrier"),
+
+      ADD_STAT(smMDPMispredictionsFalse, statistics::units::Count::get(),
+      "Number of mispredictions in MDP due to wrong barrier"),
+
+      ADD_STAT(smMDPOKNoPred, statistics::units::Count::get(),
+      " Number of correct predictions with no barrier. "),
+
+      ADD_STAT(smMDPOKPred, statistics::units::Count::get(),
+      " Number of correct predictions with barrier. "),
+
+      ADD_STAT(smMDPOKBadPred, statistics::units::Count::get(),
+      " Number of correct predictions with bad barrier. "),
+
+      ADD_STAT(smLoads, statistics::units::Count::get(),
+      "Number of load uops executed"),
+      ADD_STAT(smStores, statistics::units::Count::get(),
+      "Number of store uops executed"),
+
+      ADD_STAT(smSquashedLoads, statistics::units::Count::get(),
+      "Number of loads squashed at commit "),
+      ADD_STAT(smSquashedStores, statistics::units::Count::get(),
+      "Number of stores squashed at commit"),
+
+      ADD_STAT(smTriggeringLoads, statistics::units::Count::get(),
+      "Number of Loads triggering mem order violations"),
+      ADD_STAT(smTriggeringStores, statistics::units::Count::get(),
+      "Number of stores triggering mem order violations"),
+
+      ADD_STAT(smUops, statistics::units::Count::get(),
+      "Number of uops seen by state machine"),
+      ADD_STAT(smSquashedUops, statistics::units::Count::get(),
+      "Number of squashed uops seen by sm."),
+      ADD_STAT(smSquashedMemDepUops, statistics::units::Count::get(),
+      "Number of uops per memdep squash.")
+
 {
     // Register any of the O3CPU's stats here.
     timesIdled
@@ -446,6 +483,53 @@ CPU::CPUStats::CPUStats(CPU *cpu)
 
     miscRegfileWrites
         .prereq(miscRegfileWrites);
+
+
+    smMemOrderViolations
+        .prereq(smMemOrderViolations);
+
+    smMDPMispredictionsCold
+        .prereq(smMDPMispredictionsCold);
+
+    smMDPMispredictionsFalse
+        .prereq(smMDPMispredictionsFalse);
+
+    smMDPOKNoPred
+        .prereq(smMDPOKNoPred);
+
+    smMDPOKPred
+        .prereq(smMDPOKPred);
+
+     smMDPOKBadPred
+        .prereq( smMDPOKBadPred);
+
+    smLoads
+        .prereq(smLoads);
+
+    smStores
+        .prereq(smStores);
+
+    smSquashedLoads
+        .prereq(smSquashedLoads);
+
+    smSquashedStores
+        .prereq(smSquashedStores);
+
+    smTriggeringLoads
+        .prereq(smTriggeringLoads);
+
+    smTriggeringStores
+        .prereq(smTriggeringStores);
+
+    smUops
+        .prereq(smUops);
+
+    smSquashedUops
+        .prereq(smSquashedUops);
+
+    smSquashedMemDepUops
+        .init(0,100,1)
+        .flags(statistics::pdf);
 }
 
 void
