@@ -1000,24 +1000,24 @@ Commit::commitInsts()
         // If the head instruction is squashed, it is ready to retire
         // (be removed from the ROB) at any time.
         if (head_inst->isSquashed()) {
+            //Update memory dependence counting state machine
+            cpu->mem_dep_counter.remove_squashed(head_inst);
 
             DPRINTF(Commit, "Retiring squashed instruction from "
                     "ROB.\n");
 
-
             DPRINTF(FYPDebug,"Commit squashed: %s %llu:%llu, seqnum %llu,"
-            "effadr %llx, tid %llu , violator %llu\n",
-            head_inst->staticInst->mnemonic, head_inst->pcState().instAddr(),
-            head_inst->n_visited, head_inst->seqNum, head_inst->effAddr, tid,
-            head_inst->mem_violator);
+                "effseqnum %llu, effadr %llx, tid %llu, violator %llu\n",
+                head_inst->staticInst->mnemonic,
+                head_inst->pcState().instAddr(),
+                head_inst->n_visited, head_inst->seqNum,
+                head_inst->effSeqNum, head_inst->effAddr, tid,
+                head_inst->mem_violator);
 
             if (head_inst->fault!= NoFault){
                 DPRINTF(FYPDebug, "Commit fault: %s\n",
                 head_inst->fault->name());
             }
-
-            //Update memory dependence counting state machine
-            cpu->mem_dep_counter.remove_squashed(head_inst);
 
             rob->retireHead(commit_thread);
 
@@ -1034,17 +1034,19 @@ Commit::commitInsts()
             bool commit_success = commitHead(head_inst, num_committed);
 
             if (commit_success) {
+                //Update memory dependence counting state machine
+                cpu->mem_dep_counter.remove_comitted(head_inst);
+
                 ++num_committed;
                 stats.committedInstType[tid][head_inst->opClass()]++;
                 ppCommit->notify(head_inst);
 
                 DPRINTF(FYPDebug,"Commit ok: %s %llu:%llu, seqnum %llu,"
-                "effadr %llx, tid %llu\n", head_inst->staticInst->mnemonic,
-                head_inst->pcState().instAddr(), head_inst->n_visited,
-                head_inst->seqNum, head_inst->effAddr, tid);
-
-                //Update memory dependence counting state machine
-                cpu->mem_dep_counter.remove_comitted(head_inst);
+                "effseqnum %llu, effadr %llx, tid %llu\n",
+                head_inst->staticInst->mnemonic,
+                head_inst->pcState().instAddr(),
+                head_inst->n_visited, head_inst->seqNum,
+                head_inst->effSeqNum, head_inst->effAddr, tid);
 
                 // hardware transactional memory
 

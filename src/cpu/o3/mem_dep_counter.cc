@@ -83,6 +83,7 @@ void MemDepCounter::remove_squashed(const o3::DynInstPtr &inst){
     cpu->cpuStats.smUops++;
     cpu->cpuStats.smSquashedUops++;
 
+    inst->effSeqNum = cpu->effGlobalSeqNum;
 
   //Filter anything that aren't memory operations
   if (!(inst->isLoad() || inst->isStore() || inst->isAtomic())){
@@ -104,7 +105,6 @@ void MemDepCounter::remove_squashed(const o3::DynInstPtr &inst){
     uint64_t inst_n_visited =  inst->n_visited;
     Addr pc = inst->pcState().instAddr();
 
-  //Decrement instruction signature for all following instructions
   for (auto it = in_flight.begin(); it != in_flight.end(); it++){
     if ((*it)->pcState().instAddr() == pc &&
       (*it)->n_visited > inst_n_visited){
@@ -114,7 +114,6 @@ void MemDepCounter::remove_squashed(const o3::DynInstPtr &inst){
         (*it)->seqNum, (*it)->effAddr);
       (*it)->n_visited--;
     }
-
   }
   //Remove squashed inst
   in_flight.pop_front();
@@ -134,6 +133,8 @@ void MemDepCounter::remove_comitted(const o3::DynInstPtr &inst){
 
     cpu->cpuStats.smUops++;
     bool is_memviolation = false;
+
+    inst->effSeqNum = cpu->effGlobalSeqNum++;
 
     //Memviolation state machine
     if (sm_state == SmState::Possible){

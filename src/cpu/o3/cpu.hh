@@ -521,7 +521,7 @@ class CPU : public BaseCPU
 
     /** The global sequence number counter. */
     InstSeqNum globalSeqNum;//[MaxThreads];
-
+     InstSeqNum effGlobalSeqNum;
     /** Pointer to the checker, which can dynamically verify
      * instruction results at run time.  This can be set to NULL if it
      * is not being used.

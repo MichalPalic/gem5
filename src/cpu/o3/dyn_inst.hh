@@ -122,6 +122,7 @@ class DynInst : public ExecContext, public RefCounted
 
     /** The sequence number of the instruction. */
     InstSeqNum seqNum = 0;
+    InstSeqNum effSeqNum = 0;
     uint64_t n_visited = 0;
     uint64_t mem_violator = 0;
     InstSeqNum predictedDep = 0;
