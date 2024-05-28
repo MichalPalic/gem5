@@ -139,6 +139,8 @@ AddOption('--gprof', action='store_true',
           help='Enable support for the gprof profiler')
 AddOption('--pprof', action='store_true',
           help='Enable support for the pprof profiler')
+AddOption('--force-clang', action='store_true',
+          help='Compile with clang 17')
 # Default to --no-duplicate-sources, but keep --duplicate-sources to opt-out
 # of this new build behaviour in case it introduces regressions. We could use
 # action=argparse.BooleanOptionalAction here once Python 3.9 is required.
@@ -182,13 +184,19 @@ gem5_scons.patch_re_compile_for_inline_flags()
 #
 ########################################################################
 
-main = Environment(tools=[
-        'default', 'git', TempFileSpawn, EnvDefaults, MakeActionTool,
-        ConfigFile, AddLocalRPATH, SwitchingHeaders, TagImpliesTool, Blob
-    ])
+if GetOption('force_clang'):
+    main = Environment(tools=[
+            'default', 'git', TempFileSpawn, EnvDefaults, MakeActionTool,
+            ConfigFile, AddLocalRPATH, SwitchingHeaders, TagImpliesTool, Blob
+        ], CC='clang', CXX='clang++')
 
-main.Tool(SCons.Tool.FindTool(['gcc', 'clang'], main))
-main.Tool(SCons.Tool.FindTool(['g++', 'clang++'], main))
+else:
+    main = Environment(tools=[
+            'default', 'git', TempFileSpawn, EnvDefaults, MakeActionTool,
+            ConfigFile, AddLocalRPATH, SwitchingHeaders, TagImpliesTool, Blob
+        ])
+    main.Tool(SCons.Tool.FindTool(['gcc', 'clang'], main))
+    main.Tool(SCons.Tool.FindTool(['g++', 'clang++'], main))
 
 Export('main')
 
