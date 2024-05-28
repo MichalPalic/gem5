@@ -43,8 +43,8 @@ StoreSet::StoreSet(uint64_t clear_period, int _SSIT_size, int _LFST_size)
     : clearPeriod(clear_period), SSITSize(_SSIT_size), LFSTSize(_LFST_size)
 {
     DPRINTF(StoreSet, "StoreSet: Creating store set object.\n");
-    DPRINTF(StoreSet, "StoreSet: SSIT size: %i, LFST size: %i.\n",
-            SSITSize, LFSTSize);
+    printf("StoreSet: SSIT size: %i, LFST size: %i, Clear period: %i.\n",
+            SSITSize, LFSTSize, clearPeriod);
 
     if (!isPowerOf2(SSITSize)) {
         fatal("Invalid SSIT size!\n");
@@ -89,8 +89,8 @@ StoreSet::init(uint64_t clear_period, int _SSIT_size, int _LFST_size)
     clearPeriod = clear_period;
 
     DPRINTF(StoreSet, "StoreSet: Creating store set object.\n");
-    DPRINTF(StoreSet, "StoreSet: SSIT size: %i, LFST size: %i.\n",
-            SSITSize, LFSTSize);
+    printf("StoreSet: SSIT size: %i, LFST size: %i, Clear period: %i.\n",
+            SSITSize, LFSTSize, clearPeriod);
 
     SSIT.resize(SSITSize);
 

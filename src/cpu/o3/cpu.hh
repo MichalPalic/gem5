@@ -51,6 +51,8 @@
 
 #include "arch/generic/pcstate.hh"
 #include "base/statistics.hh"
+#include "cpu/activity.hh"
+#include "cpu/base.hh"
 #include "cpu/o3/comm.hh"
 #include "cpu/o3/commit.hh"
 #include "cpu/o3/decode.hh"
@@ -59,12 +61,11 @@
 #include "cpu/o3/free_list.hh"
 #include "cpu/o3/iew.hh"
 #include "cpu/o3/limits.hh"
+#include "cpu/o3/mem_dep_counter.hh"
 #include "cpu/o3/rename.hh"
 #include "cpu/o3/rob.hh"
 #include "cpu/o3/scoreboard.hh"
 #include "cpu/o3/thread_state.hh"
-#include "cpu/activity.hh"
-#include "cpu/base.hh"
 #include "cpu/simple_thread.hh"
 #include "cpu/timebuf.hh"
 #include "params/BaseO3CPU.hh"
@@ -107,6 +108,7 @@ class CPU : public BaseCPU
         SwitchedOut
     };
 
+    MemDepCounter mem_dep_counter;
     BaseMMU *mmu;
     using LSQRequest = LSQ::LSQRequest;
 
@@ -428,8 +430,11 @@ class CPU : public BaseCPU
     /** The commit rename map. */
     PerThreadUnifiedRenameMap commitRenameMap;
 
+  public:
     /** The re-order buffer. */
     ROB rob;
+
+  protected:
 
     /** Active Threads List */
     std::list<ThreadID> activeThreads;
@@ -519,6 +524,7 @@ class CPU : public BaseCPU
 
     /** The global sequence number counter. */
     InstSeqNum globalSeqNum;//[MaxThreads];
+    InstSeqNum effGlobalSeqNum;
 
     /** Pointer to the checker, which can dynamically verify
      * instruction results at run time.  This can be set to NULL if it
@@ -584,6 +590,53 @@ class CPU : public BaseCPU
         /** Stat for total number of cycles the CPU spends descheduled due to a
          * quiesce operation or waiting for an interrupt. */
         statistics::Scalar quiesceCycles;
+
+         /** Number of memory order violations by state machine definition. */
+        statistics::Scalar smMemOrderViolations;
+
+        /** Number of mispredictions in MDP due to no barrier. */
+        statistics::Scalar smMDPMispredictionsCold;
+
+        /** Number of mispredictions in MDP due to wrong barrier. */
+        statistics::Scalar smMDPMispredictionsFalse;
+
+        /** Number of correct predictions with no barrier. */
+        statistics::Scalar smMDPOKNoPred;
+
+        /**  Number of correct predictions with barrier. */
+        statistics::Scalar smMDPOKPred;
+
+        /**  Number of correct predictions with bad barrier. */
+        statistics::Scalar smMDPOKBadPred;
+
+        /** Number of load uops executed. */
+        statistics::Scalar smLoads;
+
+        /** Number of store uops executed. */
+        statistics::Scalar smStores;
+
+        /** Number of loads squashed at commit */
+        statistics::Scalar smSquashedLoads;
+
+        /** Number of stores squashed at commit. */
+        statistics::Scalar smSquashedStores;
+
+        /** Number of Loads triggering mem order violations */
+        statistics::Scalar smTriggeringLoads;
+
+        /** Number of stores triggering mem order violations. */
+        statistics::Scalar smTriggeringStores;
+
+
+        /** Number of uops seen by state machine */
+        statistics::Scalar smUops;
+
+        /** Number of squashed uops seen by sm. */
+        statistics::Scalar smSquashedUops;
+
+        /** Number of uops per memdep squash. */
+        statistics::Distribution  smSquashedMemDepUops;
+
     } cpuStats;
 
   public:

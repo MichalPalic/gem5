@@ -56,6 +56,7 @@ if env['CONF']['BUILD_ISA']:
     Source('store_set.cc')
     Source('thread_context.cc')
     Source('thread_state.cc')
+    Source('mem_dep_counter.cc')
 
     DebugFlag('CommitRate')
     DebugFlag('IEW')
@@ -69,6 +70,7 @@ if env['CONF']['BUILD_ISA']:
     DebugFlag('Scoreboard')
     DebugFlag('StoreSet')
     DebugFlag('Writeback')
+    DebugFlag('FYPDebug')
 
     CompoundFlag('O3CPUAll', [ 'Fetch', 'Decode', 'Rename', 'IEW', 'Commit',
         'IQ', 'ROB', 'FreeList', 'LSQ', 'LSQUnit', 'StoreSet', 'MemDepUnit',
