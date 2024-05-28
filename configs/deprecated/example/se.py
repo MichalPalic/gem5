@@ -262,6 +262,15 @@ for i in range(np):
         )
         system.cpu[i].branchPred.indirectBranchPred = indirectBPClass()
 
+    if args.lfst_size is not None:
+        system.cpu[i].LFSTSize = args.lfst_size
+
+    if args.ssit_size is not None:
+        system.cpu[i].SSITSize = args.ssit_size
+
+    if args.store_set_clear_period is not None:
+        system.cpu[i].store_set_clear_period = args.store_set_clear_period
+
     system.cpu[i].createThreads()
 
 if args.ruby:
