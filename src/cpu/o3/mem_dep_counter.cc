@@ -62,11 +62,9 @@ void MemDepCounter::insert_from_rob(const o3::DynInstPtr &inst){
   //Update inst signature
   inst->n_visited = n_visited[pc];
 
-  uint64_t tid = inst->thread->getTC()->threadId();
-
   //Assumes there is only one thread from the head of which ROB inserts/pops
   //insts
-  assert (tid == 0);
+  assert (inst->thread->getTC()->threadId() == 0);
 };
 
 void MemDepCounter::remove_squashed(const o3::DynInstPtr &inst){

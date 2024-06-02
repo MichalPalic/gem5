@@ -36,7 +36,7 @@ namespace gem5
   //eff_sequence_number mem_addr
 
   using full_trace_T = std::tuple<valid, bool, TraceUID, TraceUID, InstSeqNum,
-      InstSeqNum, Addr>;
+      InstSeqNum, Addr, uint32_t>;
 
   //Tuple of sequence number (this) - sequence number (depending on),
   //valid (bool), if entry is actually a barrier.

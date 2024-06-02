@@ -236,7 +236,7 @@ void MemOracle::record_comitted(const o3::DynInstPtr &inst){
         //False true unused elsewhere, use to label branch
         auto full_trace_elem = full_trace_T(false, true, tuid,
           TraceUID(inst->readPredTaken(), inst->mispredicted()),
-          inst->seqNum, inst->effSeqNum, inst->effAddr);
+          inst->seqNum, inst->effSeqNum, inst->effAddr, 0);
           full_mem_trace.push_back(full_trace_elem);
     }
 
@@ -280,7 +280,10 @@ void MemOracle::record_comitted(const o3::DynInstPtr &inst){
 
 void MemOracle::push_to_buffers(const o3::DynInstPtr &inst){
 
-    Addr effAddr = inst->effAddr >> 4;
+    Addr effAddr = inst->effAddr;
+
+    //Effsize in bytes
+    uint64_t effSize = inst->effSize;
     Addr pc = inst->pcState().instAddr();
     uint64_t inst_n_visited = inst->n_visited;
     TraceUID tuid = TraceUID(pc, inst_n_visited);
@@ -288,41 +291,54 @@ void MemOracle::push_to_buffers(const o3::DynInstPtr &inst){
    //Update last store to touch in fwd cache
     if (inst->isStore() || inst->isAtomic()){
 
-      //Note of UID touching address
-      fwd_cache[effAddr] = tuid;
+      //Note of UID of touching inst with byte granularity
+      for (uint64_t byteAddr = effAddr;
+        byteAddr < effAddr + effSize; byteAddr++){
+        fwd_cache[byteAddr] = tuid;
+      }
 
       auto full_trace_elem = full_trace_T(false, false, tuid, TraceUID( 0, 0)
-        , inst->seqNum, inst->effSeqNum, effAddr);
+        , inst->seqNum, inst->effSeqNum, effAddr, effSize);
       full_mem_trace.push_back(full_trace_elem);
 
     }else if (inst->isLoad()){
-      if (fwd_cache.count(effAddr)){
+      //Set to store all unique TraceUIDs across byte array
+      std::set <TraceUID> dep_set;
 
-        //Get last store that touched given memory
-        TraceUID fwd_uid = fwd_cache[effAddr];
+      for (uint64_t byteAddr = effAddr;
+        byteAddr < effAddr + effSize; byteAddr++){
+        if (fwd_cache.count(byteAddr)){
+          //Get last store that touched given memory
+          TraceUID fwd_uid = fwd_cache[effAddr];
+          dep_set.insert(fwd_uid);
+        }
+      }
 
-        //Generate full trace entry
-        auto full_trace_elem = full_trace_T(true, true, tuid, fwd_uid,
-          inst->seqNum, inst->effSeqNum, effAddr);
-        full_mem_trace.push_back(full_trace_elem);
-
+      for (auto dep_uid : dep_set){
         //Generate mini trace entry
-        auto mini_trace_elem = mini_trace_T(tuid, fwd_uid);
+        auto mini_trace_elem = mini_trace_T(tuid, dep_uid);
         mini_mem_trace.push_back(mini_trace_elem);
 
         DPRINTF(MemOracle,"MemTracer commit dependent: %u:%u, seqnum %u,\
         effadr %u , depends on: %u:%u\n", pc, inst_n_visited, inst->seqNum,
-          effAddr, fwd_uid.pc, fwd_uid.n_visited);
+          effAddr, dep_uid.pc, dep_uid.n_visited);
+      }
 
-      } else{
+      if (dep_set.size() > 0){
         //Generate full trace entry
+        auto dep_uid = (*dep_set.begin());
+        auto full_trace_elem = full_trace_T(true, true, tuid, dep_uid,
+          inst->seqNum, inst->effSeqNum, effAddr, effSize);
+        full_mem_trace.push_back(full_trace_elem);
+
+      }else{
+              //Generate full trace entry
         auto full_trace_elem = full_trace_T(true, false, tuid,
-          TraceUID( 0, 0), inst->seqNum, inst->effSeqNum, effAddr);
+          TraceUID( 0, 0), inst->seqNum, inst->effSeqNum, effAddr, effSize);
         full_mem_trace.push_back(full_trace_elem);
 
         DPRINTF(MemOracle,"MemTracer commit new: %u:%u, seqnum %u,\
         effadr %u \n", pc, inst_n_visited, inst->seqNum, effAddr);
-
       }
 
     }
