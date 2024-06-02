@@ -130,6 +130,7 @@ class DynInst : public ExecContext, public RefCounted
     uint64_t n_visited_at_detection = 0;
     uint64_t mem_violator_n_at_detection = 0;
     bool sm_violator = false;
+    bool updated_n_visited = false;
 
     /** The StaticInst used by this BaseDynInst. */
     const StaticInstPtr staticInst;

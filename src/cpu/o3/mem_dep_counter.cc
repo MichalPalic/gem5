@@ -35,11 +35,6 @@ MemDepCounter::MemDepCounter(o3::CPU *_cpu, const BaseO3CPUParams &params)
       : cpu(_cpu){};
 
 void MemDepCounter::insert_from_rob(const o3::DynInstPtr &inst){
-
-  //Print heartbeat
-  if (inst->seqNum % 1000000 == 0)
-  printf("Heartbeat: %llu \n", inst->seqNum);
-
   //Filter anything that aren't memory operations
   if (!(inst->isLoad() || inst->isStore() || inst->isAtomic())){
     return;
@@ -139,6 +134,13 @@ void MemDepCounter::remove_comitted(const o3::DynInstPtr &inst){
     cpu->cpuStats.smUops++;
 
     inst->effSeqNum = cpu->effGlobalSeqNum++;
+
+    //Print heartbeat
+    static uint64_t next_heartbeat = 0;
+    if (inst->effSeqNum > next_heartbeat){
+      printf("Heartbeat: %llu \n", inst->effSeqNum);
+      next_heartbeat += 1000000;
+    }
 
     //Memviolation state machine
     if (sm_state == SmState::Possible){
