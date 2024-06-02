@@ -13,6 +13,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include <boost/iostreams/device/file.hpp>
+#include <boost/iostreams/filter/zstd.hpp>
+#include <boost/iostreams/filtering_stream.hpp>
+
 #include "base/trace.hh"
 #include "base/types.hh"
 #include "cpu/inst_seq.hh"
@@ -56,6 +60,10 @@ namespace gem5
 
     o3::CPU* cpu;
 
+    //File handles
+    boost::iostreams::filtering_ostream mini_trace_f;
+    boost::iostreams::filtering_ostream full_trace_f;
+
     //Used to store loaded mini-trace information
     std::multimap<TraceUID, TraceUID> trace_dependencies;
     std::set<TraceUID> trace_barriers;
@@ -66,7 +74,7 @@ namespace gem5
     MemOracle(o3::CPU * _cpu, const BaseO3CPUParams &params);
 
     std::vector<InstSeqNum> checkInst(const o3::DynInstPtr &inst);
-    void load_mini_trace(std::string path);
+    uint32_t load_mini_trace(std::string path);
 
 
     //Tracer remnants
@@ -83,6 +91,7 @@ namespace gem5
     void check_flush();
     void flush_mini_buffer();
     void flush_full_buffer();
+    void close_files();
 
   };
 

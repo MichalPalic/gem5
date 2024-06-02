@@ -792,6 +792,13 @@ for variant_path in variant_paths:
     gem5py_env.Append(CCFLAGS=['${GEM5PY_CCFLAGS_EXTRA}'])
     gem5py_env.Append(LINKFLAGS=['${GEM5PY_LINKFLAGS_EXTRA}'])
 
+
+    #Add in boost
+    #gem5py_env.Append(CXXFLAGS=['-lboost_iostreams', '-lzstd'])
+    # gem5py_env.Append(LINKFLAGS=['-lboost_iostreams', '-lzstd'])
+    # gem5py_env.Append(LIBS=['-lboost_iostreams'])
+    # gem5py_env.Append(LIBS=['-lzstd'])
+
     if GetOption('gprof') and GetOption('pprof'):
         error('Only one type of profiling should be enabled at a time')
     if GetOption('gprof'):

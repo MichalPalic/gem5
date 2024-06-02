@@ -46,24 +46,24 @@ MemOracle::MemOracle(o3::CPU *_cpu, const BaseO3CPUParams &params)
 
     if (mode_str == "Refine"){
         mode = OracleMode::Refine;
-        DPRINTF(MemOracle,"MemOracle: Refine mode from env\n");
+        printf("MemOracle: Refine mode from env\n");
     }else if (mode_str == "Trace"){
         mode = OracleMode::Trace;
-        DPRINTF(MemOracle,"MemOracle: Trace mode from env\n");
+        printf("MemOracle: Trace mode from env\n");
     }else if (mode_str == "Barrier"){
         mode = OracleMode::Barrier;
-        DPRINTF(MemOracle,"MemOracle: Barrier mode from env\n");
+        printf("MemOracle: Barrier mode from env\n");
     }else{
         mode = OracleMode::Disabled;
-        DPRINTF(MemOracle,"MemOracle: Disabled mode from env\n");
+        printf("MemOracle: Disabled mode from env\n");
     }
   } else {
-    DPRINTF(MemOracle,"MemOracle: Disabled mode by default\n");
+    printf("MemOracle: Disabled mode by default\n");
   }
 
   if (std::getenv("TRACEDIR")){
     trace_dir = std::getenv("TRACEDIR");
-    DPRINTF(MemOracle,"MemOracle: Loaded path from env var %s \n",
+    printf("MemOracle: Loaded path from env var %s \n",
     trace_dir.c_str());
   }
 
@@ -71,83 +71,106 @@ MemOracle::MemOracle(o3::CPU *_cpu, const BaseO3CPUParams &params)
     return;
   }
 
-  if (mode == OracleMode::Refine || mode == OracleMode::Run
-    || mode == OracleMode::Barrier){
-    load_mini_trace( trace_dir + "/mini_trace.csv");
-  }
-
-  //Clear previous trace file if exists at directory
-  std::ofstream full_trace_f(trace_dir + "/full_trace.csv");
-  full_trace_f.close();
-
-  //Only wipe minitrace if starting from scratch
+  //Only wipe traces if starting from scratch
   if (mode == OracleMode::Trace){
-    std::ofstream mini_trace_f(trace_dir + "/mini_trace.csv");
-    mini_trace_f.close();
-  }
-  //Append comment if refining trace
-  else if (mode == OracleMode::Refine || mode == OracleMode::Barrier){
-    std::ofstream mini_trace_f(trace_dir + "/mini_trace.csv", std::ios::app);
+
+    full_trace_f.push(boost::iostreams::zstd_compressor());
+    full_trace_f.push(
+      boost::iostreams::file_sink(trace_dir + "/full_trace.csv.zst"));
+
+    mini_trace_f.push(boost::iostreams::zstd_compressor());
+    mini_trace_f.push(
+      boost::iostreams::file_sink(trace_dir + "/mini_trace_0.csv.zst"));
+
+    mini_trace_f << "#Trace\n";
+
+  }else if (mode == OracleMode::Refine || mode == OracleMode::Barrier){
+    uint32_t next_trace_id = load_mini_trace( trace_dir );
+    mini_trace_f.push(boost::iostreams::zstd_compressor());
+    mini_trace_f.push(boost::iostreams::file_sink(
+      trace_dir + "/mini_trace_" + std::to_string(next_trace_id) +".csv.zst"));
+
+    //Append comment if refining trace
     mini_trace_f << "#Refinement\n";
-    mini_trace_f.close();
   }
 
   // Register functions to be called before destruction
   registerExitCallback([this]() {
     flush_mini_buffer();
-    flush_full_buffer();});
+    flush_full_buffer();
+    close_files();});
 };
 
-void
+uint32_t
 MemOracle::load_mini_trace(std::string path){
-    std::string line;
-    std::fstream infile;
-    infile.open(path, std::ios::in);
 
-    if (!infile.is_open()){
-        printf("Failed to open mem trace path \n");
-        return;
-    }
+    //Iterate over up to N mini traces in order
+    uint32_t trace_idx = 0;
 
-    while (std::getline(infile, line))
-    {
-      //Allow for comments to be ignored
-      if (line[0] == '#'){
-        continue;
+    while (true){
+
+      //Load actual file
+      boost::iostreams::filtering_istream infile;
+      infile.push(boost::iostreams::zstd_decompressor());
+      infile.push(boost::iostreams::file_source(
+        path + "/mini_trace_" + std::to_string(trace_idx) +".csv.zst"));
+      printf("Trying to open mem trace path: %s\n",
+        (path + "/mini_trace_" + std::to_string(trace_idx)
+        + ".csv.zst").c_str());
+      std::string line;
+
+      //If fails to read pre-amble, file doesn't exist
+      if (!std::getline(infile, line)){
+        printf("Failed to open mem trace path %s\n",
+          (path + "/mini_trace_" + std::to_string(trace_idx)
+          + ".csv.zst").c_str());
+        printf("Possibly using the above descriptor for next incremental"
+          "trace\n");
+        return trace_idx;
       }
+      trace_idx++;
 
-      bool barrier = false;
-      if (line[0] == 'B'){
-        barrier = true;
-        line[0] = '0';
-      }
 
-      Addr pc_1, pc_2;
-      uint64_t n_1, n_2;
+      while (std::getline(infile, line))
+      {
+        //Allow for comments to be ignored
+        if (line[0] == '#'){
+          continue;
+        }
 
-      std::string temp;
-      std::stringstream ss(line);
+        bool barrier = false;
+        if (line[0] == 'B'){
+          barrier = true;
+          line[0] = '0';
+        }
 
-      std::getline(ss, temp, ':');
-      pc_1 = std::stoull(temp);
+        Addr pc_1, pc_2;
+        uint64_t n_1, n_2;
 
-      std::getline(ss, temp, ',');
-      n_1 = std::stoull(temp);
+        std::string temp;
+        std::stringstream ss(line);
 
-      std::getline(ss, temp, ':');
-      pc_2 = std::stoull(temp);
+        std::getline(ss, temp, ':');
+        pc_1 = std::stoull(temp);
 
-      std::getline(ss, temp, ',');
-      n_2 = std::stoull(temp);
+        std::getline(ss, temp, ',');
+        n_1 = std::stoull(temp);
 
-      TraceUID this_uid = TraceUID(pc_1, n_1);
-      TraceUID dep_uid = TraceUID(pc_2, n_2);
+        std::getline(ss, temp, ':');
+        pc_2 = std::stoull(temp);
 
-      if (barrier){
-        trace_barriers.insert(this_uid);
-      }else{
-        trace_dependencies.insert(
-          std::pair<TraceUID, TraceUID>(this_uid, dep_uid));
+        std::getline(ss, temp, ',');
+        n_2 = std::stoull(temp);
+
+        TraceUID this_uid = TraceUID(pc_1, n_1);
+        TraceUID dep_uid = TraceUID(pc_2, n_2);
+
+        if (barrier){
+          trace_barriers.insert(this_uid);
+        }else{
+          trace_dependencies.insert(
+            std::pair<TraceUID, TraceUID>(this_uid, dep_uid));
+        }
       }
     }
 };
@@ -205,7 +228,7 @@ void MemOracle::record_comitted(const o3::DynInstPtr &inst){
       return;
 
     //Record branch for branch distance graphs
-    if (inst->isCondCtrl()){
+    if (inst->isCondCtrl() && mode == OracleMode::Trace){
 
         //Generate full trace entry
         TraceUID tuid = TraceUID(inst->pcState().instAddr(), inst->n_visited);
@@ -246,9 +269,9 @@ void MemOracle::record_comitted(const o3::DynInstPtr &inst){
         cpu->mem_dep_counter.sm_dep_n_visited);
 
         //Generate full trace entry
-        auto full_trace_elem = full_trace_T(true, true, tuid, violator_uid,
-          inst->seqNum, inst->effSeqNum, inst->effAddr);
-        full_mem_trace.push_back(full_trace_elem);
+        // auto full_trace_elem = full_trace_T(true, true, tuid, violator_uid,
+        //   inst->seqNum, inst->effSeqNum, inst->effAddr);
+        // full_mem_trace.push_back(full_trace_elem);
 
     }
 
@@ -306,18 +329,16 @@ void MemOracle::push_to_buffers(const o3::DynInstPtr &inst){
 };
 
 void MemOracle::flush_mini_buffer() {
-
   std::string out_buf;
-  std::ofstream mini_trace_f(trace_dir + "/mini_trace.csv", std::ios::app);
 
-  if (!mini_trace_f.is_open()) {
+  if (!mini_trace_f.good()) {
     printf("Failed to open mini_trace_file \n");
     return;
   }
 
   for (auto elem : mini_mem_trace) {
 
-    //Bodge first character as barrier
+    //First character signifies barrier
     if (mode == OracleMode::Barrier){
       out_buf += 'B';
     }
@@ -331,16 +352,17 @@ void MemOracle::flush_mini_buffer() {
   mini_trace_f << out_buf;
   mini_mem_trace.clear();
   out_buf.clear();
-  mini_trace_f.close();
 };
 
 void MemOracle::flush_full_buffer() {
 
   std::string out_buf;
 
-  std::ofstream full_trace_f(trace_dir + "/full_trace.csv", std::ios::app);
+  if (mode != OracleMode::Trace){
+    return;
+  }
 
-  if (!full_trace_f.is_open()) {
+  if (!full_trace_f.good()) {
     printf("Failed to open full_trace_file \n");
     return;
   }
@@ -365,7 +387,6 @@ void MemOracle::flush_full_buffer() {
 
   full_trace_f << out_buf;
   full_mem_trace.clear();
-  full_trace_f.close();
   out_buf.clear();
 };
 
@@ -376,6 +397,19 @@ void MemOracle::check_flush(){
     full_mem_trace.clear();
     mini_mem_trace.clear();
   }
+}
+void MemOracle::close_files(){
+
+  if (mode == OracleMode::Trace){
+    mini_trace_f.flush();
+    full_trace_f.flush();
+    mini_trace_f.reset();
+    full_trace_f.reset();
+  }else if (mode == OracleMode::Refine ||
+    mode == OracleMode::Barrier){
+      mini_trace_f.flush();
+      mini_trace_f.reset();
+    }
 }
 
 } // namespace gem5

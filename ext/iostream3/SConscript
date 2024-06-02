@@ -44,3 +44,7 @@ env.Library('iostream3', [env.SharedObject('zfstream.cc')])
 env.Prepend(CPPPATH=Dir('.').srcnode())
 env.Append(LIBS=['iostream3'])
 env.Prepend(LIBPATH=[Dir('.')])
+
+#I'm sorry :( I couldn't find a different place where boost link flags work
+env.Append(LIBS=['boost_iostreams'])
+env.Append(LIBS=['zstd'])
