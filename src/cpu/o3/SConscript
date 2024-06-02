@@ -57,6 +57,7 @@ if env['CONF']['BUILD_ISA']:
     Source('thread_context.cc')
     Source('thread_state.cc')
     Source('mem_dep_counter.cc')
+    Source('mem_oracle.cc')
 
     DebugFlag('CommitRate')
     DebugFlag('IEW')
@@ -71,6 +72,9 @@ if env['CONF']['BUILD_ISA']:
     DebugFlag('StoreSet')
     DebugFlag('Writeback')
     DebugFlag('FYPDebug')
+    DebugFlag('MemTrace')
+    DebugFlag('MdpNodep')
+    DebugFlag('MemOracle')
 
     CompoundFlag('O3CPUAll', [ 'Fetch', 'Decode', 'Rename', 'IEW', 'Commit',
         'IQ', 'ROB', 'FreeList', 'LSQ', 'LSQUnit', 'StoreSet', 'MemDepUnit',

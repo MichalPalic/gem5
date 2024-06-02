@@ -1,0 +1,381 @@
+/*
+ * Copyright (c) 2004-2006 The Regents of The University of Michigan
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met: redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer;
+ * redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution;
+ * neither the name of the copyright holders nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+#include "cpu/o3/mem_oracle.hh"
+#include "cpu/o3/cpu.hh"
+#include "cpu/o3/dyn_inst.hh"
+
+namespace gem5 {
+MemOracle::MemOracle(o3::CPU *_cpu, const BaseO3CPUParams &params)
+      : cpu(_cpu)
+ {
+
+    //Slightly hacky option for passing trace output directory from an
+  //environment variable. For example run as:
+  // ORACLEMODE=Refine TRACEDIR=dir_of_trace bash -c './build/X86/gem5.debug
+  // configs/example/se.py --cpu-type=X86O3CPU --caches
+  // --cmd=tests/test-progs/hello/bin/x86/linux/hello'
+
+  //Parse environment variable into oracle mode
+  if (std::getenv("ORACLEMODE")){
+    std::string mode_str = std::getenv("ORACLEMODE");
+
+    if (mode_str == "Refine"){
+        mode = OracleMode::Refine;
+        DPRINTF(MemOracle,"MemOracle: Refine mode from env\n");
+    }else if (mode_str == "Trace"){
+        mode = OracleMode::Trace;
+        DPRINTF(MemOracle,"MemOracle: Trace mode from env\n");
+    }else if (mode_str == "Barrier"){
+        mode = OracleMode::Barrier;
+        DPRINTF(MemOracle,"MemOracle: Barrier mode from env\n");
+    }else{
+        mode = OracleMode::Disabled;
+        DPRINTF(MemOracle,"MemOracle: Disabled mode from env\n");
+    }
+  } else {
+    DPRINTF(MemOracle,"MemOracle: Disabled mode by default\n");
+  }
+
+  if (std::getenv("TRACEDIR")){
+    trace_dir = std::getenv("TRACEDIR");
+    DPRINTF(MemOracle,"MemOracle: Loaded path from env var %s \n",
+    trace_dir.c_str());
+  }
+
+  if (mode == OracleMode::Disabled){
+    return;
+  }
+
+  if (mode == OracleMode::Refine || mode == OracleMode::Run
+    || mode == OracleMode::Barrier){
+    load_mini_trace( trace_dir + "/mini_trace.csv");
+  }
+
+  //Clear previous trace file if exists at directory
+  std::ofstream full_trace_f(trace_dir + "/full_trace.csv");
+  full_trace_f.close();
+
+  //Only wipe minitrace if starting from scratch
+  if (mode == OracleMode::Trace){
+    std::ofstream mini_trace_f(trace_dir + "/mini_trace.csv");
+    mini_trace_f.close();
+  }
+  //Append comment if refining trace
+  else if (mode == OracleMode::Refine || mode == OracleMode::Barrier){
+    std::ofstream mini_trace_f(trace_dir + "/mini_trace.csv", std::ios::app);
+    mini_trace_f << "#Refinement\n";
+    mini_trace_f.close();
+  }
+
+  // Register functions to be called before destruction
+  registerExitCallback([this]() {
+    flush_mini_buffer();
+    flush_full_buffer();});
+};
+
+void
+MemOracle::load_mini_trace(std::string path){
+    std::string line;
+    std::fstream infile;
+    infile.open(path, std::ios::in);
+
+    if (!infile.is_open()){
+        printf("Failed to open mem trace path \n");
+        return;
+    }
+
+    while (std::getline(infile, line))
+    {
+      //Allow for comments to be ignored
+      if (line[0] == '#'){
+        continue;
+      }
+
+      bool barrier = false;
+      if (line[0] == 'B'){
+        barrier = true;
+        line[0] = '0';
+      }
+
+      Addr pc_1, pc_2;
+      uint64_t n_1, n_2;
+
+      std::string temp;
+      std::stringstream ss(line);
+
+      std::getline(ss, temp, ':');
+      pc_1 = std::stoull(temp);
+
+      std::getline(ss, temp, ',');
+      n_1 = std::stoull(temp);
+
+      std::getline(ss, temp, ':');
+      pc_2 = std::stoull(temp);
+
+      std::getline(ss, temp, ',');
+      n_2 = std::stoull(temp);
+
+      TraceUID this_uid = TraceUID(pc_1, n_1);
+      TraceUID dep_uid = TraceUID(pc_2, n_2);
+
+      if (barrier){
+        trace_barriers.insert(this_uid);
+      }else{
+        trace_dependencies.insert(
+          std::pair<TraceUID, TraceUID>(this_uid, dep_uid));
+      }
+    }
+};
+
+std::vector<InstSeqNum> MemOracle::checkInst(const o3::DynInstPtr &inst){
+  assert (inst->isLoad() || inst->isStore() || inst->isAtomic());
+  TraceUID tuid = TraceUID( inst->pcState().instAddr(), inst->n_visited);
+
+  // if (tuid == TraceUID(4680765,2)){
+  //   printf("Got here");
+  // }
+
+  std::vector<InstSeqNum> out;
+
+  //Traverse through the multiple dependencies
+  for (auto[itr, rangeEnd] = trace_dependencies.equal_range(tuid);
+    itr != rangeEnd; ++itr){
+    TraceUID depuid = itr->second;
+
+    //Find dependent instruction in list of in-flight insts
+    for (auto depinst : cpu->mem_dep_counter.in_flight){
+      if (depinst->pcState().instAddr() == depuid.pc &&
+        depinst->n_visited == depuid.n_visited &&
+        depinst->isStore()){
+          if (depinst->seqNum < inst->seqNum){
+            out.push_back(depinst->seqNum);
+          } else{
+            DPRINTF(MemOracle,"Requesting dependence on newer inst\n");
+          }
+        }
+    }
+  }
+
+  //Implement barriers
+  if (trace_barriers.count(tuid)){
+    DPRINTF(MemOracle,"Requesting barrier on newer inst\n");
+    for (auto depinst : cpu->mem_dep_counter.in_flight){
+      if (depinst->isStore()){
+          if (depinst->seqNum < inst->seqNum){
+            out.push_back(depinst->seqNum);
+          } else{
+            DPRINTF(MemOracle,"Requesting barrier on newer inst\n");
+          }
+        }
+    }
+  }
+  return out;
+}
+
+//Tracer
+
+void MemOracle::record_comitted(const o3::DynInstPtr &inst){
+
+    if (mode == OracleMode::Disabled)
+      return;
+
+    //Record branch for branch distance graphs
+    if (inst->isCondCtrl()){
+
+        //Generate full trace entry
+        TraceUID tuid = TraceUID(inst->pcState().instAddr(), inst->n_visited);
+
+        //False true unused elsewhere, use to label branch
+        auto full_trace_elem = full_trace_T(false, true, tuid,
+          TraceUID(inst->readPredTaken(), inst->mispredicted()),
+          inst->seqNum, inst->effSeqNum, inst->effAddr);
+          full_mem_trace.push_back(full_trace_elem);
+    }
+
+    //Filter anything that aren't memory operations
+    if (!(inst->isLoad() || inst->isStore() || inst->isAtomic())){
+      return;
+    }
+
+    if (mode == OracleMode::Trace){
+      //Push successfully committed instructions to buffers
+      push_to_buffers(inst);
+    } else if ((mode == OracleMode::Refine || mode == OracleMode::Barrier)
+        && inst->sm_violator){
+        //Generate mini trace entry if refining trace
+        TraceUID tuid = TraceUID(inst->pcState().instAddr(),
+          cpu->mem_dep_counter.sm_n_visited_at_prediction);
+
+        //TraceUID tuid = TraceUID(inst->pcState().instAddr(),
+        //cpu->mem_dep_counter.sm_n_visited_at_detection);
+
+        TraceUID violator_uid = TraceUID(cpu->mem_dep_counter.sm_dep_pc,
+          cpu->mem_dep_counter.sm_dep_n_visited);
+        auto mini_trace_elem = mini_trace_T(tuid, violator_uid);
+        mini_mem_trace.push_back(mini_trace_elem);
+
+        DPRINTF(MemOracle,"MemOracle refine: %u:%u, seqnum %u, "
+        "effadr %u , depends on: %u:%u\n", inst->pcState().instAddr(),
+        inst->n_visited, inst->seqNum, inst->effAddr,
+        cpu->mem_dep_counter.sm_dep_pc,
+        cpu->mem_dep_counter.sm_dep_n_visited);
+
+        //Generate full trace entry
+        auto full_trace_elem = full_trace_T(true, true, tuid, violator_uid,
+          inst->seqNum, inst->effSeqNum, inst->effAddr);
+        full_mem_trace.push_back(full_trace_elem);
+
+    }
+
+    check_flush();
+};
+
+void MemOracle::push_to_buffers(const o3::DynInstPtr &inst){
+
+    Addr effAddr = inst->effAddr >> 4;
+    Addr pc = inst->pcState().instAddr();
+    uint64_t inst_n_visited = inst->n_visited;
+    TraceUID tuid = TraceUID(pc, inst_n_visited);
+
+   //Update last store to touch in fwd cache
+    if (inst->isStore() || inst->isAtomic()){
+
+      //Note of UID touching address
+      fwd_cache[effAddr] = tuid;
+
+      auto full_trace_elem = full_trace_T(false, false, tuid, TraceUID( 0, 0)
+        , inst->seqNum, inst->effSeqNum, effAddr);
+      full_mem_trace.push_back(full_trace_elem);
+
+    }else if (inst->isLoad()){
+      if (fwd_cache.count(effAddr)){
+
+        //Get last store that touched given memory
+        TraceUID fwd_uid = fwd_cache[effAddr];
+
+        //Generate full trace entry
+        auto full_trace_elem = full_trace_T(true, true, tuid, fwd_uid,
+          inst->seqNum, inst->effSeqNum, effAddr);
+        full_mem_trace.push_back(full_trace_elem);
+
+        //Generate mini trace entry
+        auto mini_trace_elem = mini_trace_T(tuid, fwd_uid);
+        mini_mem_trace.push_back(mini_trace_elem);
+
+        DPRINTF(MemOracle,"MemTracer commit dependent: %u:%u, seqnum %u,\
+        effadr %u , depends on: %u:%u\n", pc, inst_n_visited, inst->seqNum,
+          effAddr, fwd_uid.pc, fwd_uid.n_visited);
+
+      } else{
+        //Generate full trace entry
+        auto full_trace_elem = full_trace_T(true, false, tuid,
+          TraceUID( 0, 0), inst->seqNum, inst->effSeqNum, effAddr);
+        full_mem_trace.push_back(full_trace_elem);
+
+        DPRINTF(MemOracle,"MemTracer commit new: %u:%u, seqnum %u,\
+        effadr %u \n", pc, inst_n_visited, inst->seqNum, effAddr);
+
+      }
+
+    }
+};
+
+void MemOracle::flush_mini_buffer() {
+
+  std::string out_buf;
+  std::ofstream mini_trace_f(trace_dir + "/mini_trace.csv", std::ios::app);
+
+  if (!mini_trace_f.is_open()) {
+    printf("Failed to open mini_trace_file \n");
+    return;
+  }
+
+  for (auto elem : mini_mem_trace) {
+
+    //Bodge first character as barrier
+    if (mode == OracleMode::Barrier){
+      out_buf += 'B';
+    }
+
+    out_buf += std::to_string(std::get<0>(elem));
+    out_buf += ',';
+    out_buf += std::to_string(std::get<1>(elem));
+    out_buf += '\n';
+  }
+
+  mini_trace_f << out_buf;
+  mini_mem_trace.clear();
+  out_buf.clear();
+  mini_trace_f.close();
+};
+
+void MemOracle::flush_full_buffer() {
+
+  std::string out_buf;
+
+  std::ofstream full_trace_f(trace_dir + "/full_trace.csv", std::ios::app);
+
+  if (!full_trace_f.is_open()) {
+    printf("Failed to open full_trace_file \n");
+    return;
+  }
+
+  for (auto elem : full_mem_trace) {
+
+    out_buf += std::to_string(uint8_t(std::get<0>(elem)));
+    out_buf += ',';
+    out_buf += std::to_string(uint8_t(std::get<1>(elem)));
+    out_buf += ',';
+    out_buf += std::to_string(std::get<2>(elem));
+    out_buf += ',';
+    out_buf += std::to_string(std::get<3>(elem));
+    out_buf += ',';
+    out_buf += std::to_string(std::get<4>(elem));
+    out_buf += ',';
+    out_buf += std::to_string(std::get<5>(elem));
+    out_buf += ',';
+    out_buf += std::to_string(std::get<6>(elem));
+    out_buf += '\n';
+  }
+
+  full_trace_f << out_buf;
+  full_mem_trace.clear();
+  full_trace_f.close();
+  out_buf.clear();
+};
+
+void MemOracle::check_flush(){
+    if (full_mem_trace.size() > FLUSH_THRESHOLD) {
+    flush_full_buffer();
+    flush_mini_buffer();
+    full_mem_trace.clear();
+    mini_mem_trace.clear();
+  }
+}
+
+} // namespace gem5

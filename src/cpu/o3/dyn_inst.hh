@@ -124,8 +124,12 @@ class DynInst : public ExecContext, public RefCounted
     InstSeqNum seqNum = 0;
     InstSeqNum effSeqNum = 0;
     uint64_t n_visited = 0;
-    uint64_t mem_violator = 0;
     InstSeqNum predictedDep = 0;
+    DynInstPtr mem_violator = nullptr;
+    uint64_t n_visited_at_prediction = 0;
+    uint64_t n_visited_at_detection = 0;
+    uint64_t mem_violator_n_at_detection = 0;
+    bool sm_violator = false;
 
     /** The StaticInst used by this BaseDynInst. */
     const StaticInstPtr staticInst;

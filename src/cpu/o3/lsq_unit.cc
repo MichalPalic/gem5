@@ -509,7 +509,10 @@ LSQUnit::checkSnoop(PacketPtr pkt)
 Fault
 LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
         const DynInstPtr& inst)
-{
+{   
+    //Oracle data collection
+    inst->n_visited_at_prediction = inst->n_visited;
+
     Addr inst_eff_addr1 = inst->effAddr >> depCheckShift;
     Addr inst_eff_addr2 = (inst->effAddr + inst->effSize - 1) >> depCheckShift;
 
@@ -540,7 +543,6 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
                         DPRINTF(LSQUnit, "Detected fault with inst [sn:%lli] "
                                 "and [sn:%lli] at address %#x\n",
                                 inst->seqNum, ld_inst->seqNum, ld_eff_addr1);
-                        memDepViolator = ld_inst;
 
                         DPRINTF(FYPDebug, "Detected fault with inst [sn:%llu]"
                         "[%s] and [sn:%llu] [%s] at address %#x\n",
@@ -549,11 +551,15 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
                         ld_inst->isLoad() ? "load" : "not load", ld_eff_addr1);
 
                         DPRINTF(FYPDebug, "Detected fault with inst"
-                        "[%lli:%lli] and [%lli:%lli]\n",
+                        "[%lli:%lli](%lli) and [%lli:%lli](%lli)\n",
                         inst->pcState().instAddr(), inst->n_visited,
-                        ld_inst->pcState().instAddr(), ld_inst->n_visited);
+                        inst->n_visited_at_prediction,
+                        ld_inst->pcState().instAddr(),
+                        ld_inst->n_visited, ld_inst->n_visited_at_prediction);
 
-                        ld_inst->mem_violator = 1;
+                        ld_inst->mem_violator = inst;
+                        ld_inst->mem_violator_n_at_detection = inst->n_visited;
+                        ld_inst->n_visited_at_detection = ld_inst->n_visited;
                         memDepViolator = ld_inst;
 
                         ++stats.memOrderViolation;
@@ -592,7 +598,9 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
                 "[%lli:%lli]\n", inst->pcState().instAddr(), inst->n_visited,
                 ld_inst->pcState().instAddr(), ld_inst->n_visited);
 
-                ld_inst->mem_violator = 1;
+                ld_inst->mem_violator = inst;
+                ld_inst->mem_violator_n_at_detection = inst->n_visited;
+                ld_inst->n_visited_at_detection = ld_inst->n_visited;
                 memDepViolator = ld_inst;
 
                 ++stats.memOrderViolation;

@@ -70,6 +70,7 @@
 #include "cpu/timebuf.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/process.hh"
+#include "cpu/o3/mem_oracle.hh"
 
 namespace gem5
 {
@@ -80,6 +81,7 @@ class ThreadContext;
 
 class Checkpoint;
 class Process;
+class MemTracer;
 
 namespace o3
 {
@@ -109,6 +111,8 @@ class CPU : public BaseCPU
     };
 
     MemDepCounter mem_dep_counter;
+    MemOracle mem_oracle;
+
     BaseMMU *mmu;
     using LSQRequest = LSQ::LSQRequest;
 
@@ -402,7 +406,7 @@ class CPU : public BaseCPU
      */
     bool removeInstsThisCycle;
 
-  protected:
+  public:
     /** The fetch stage. */
     Fetch fetch;
 

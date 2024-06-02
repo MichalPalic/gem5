@@ -72,6 +72,7 @@ namespace o3
 CPU::CPU(const BaseO3CPUParams &params)
     : BaseCPU(params),
       mem_dep_counter(this, params),
+      mem_oracle(this, params),
       mmu(params.mmu),
       tickEvent([this]{ tick(); }, "O3CPU tick",
                 false, Event::CPU_Tick_Pri),

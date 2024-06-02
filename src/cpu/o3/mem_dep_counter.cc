@@ -91,13 +91,20 @@ void MemDepCounter::remove_squashed(const o3::DynInstPtr &inst){
   }
 
   //Update mem dep violation counting state machine
-  if (inst->mem_violator){
+  if ((bool)inst->mem_violator){
       sm_state = SmState::Possible;
       sm_pc = inst->pcState().instAddr();
       sm_n_visited = inst->n_visited;
       sm_address = inst->effAddr;
       sm_seqnum = inst->seqNum;
       sm_dep = inst->predictedDep;
+
+      sm_dep_pc = inst->mem_violator->pcState().instAddr();
+      sm_dep_n_visited = inst->mem_violator->n_visited;
+      sm_dep_n_visited_at_detection = inst->mem_violator_n_at_detection;
+      sm_dep_address = inst->mem_violator->effAddr;
+      sm_n_visited_at_detection = inst->n_visited_at_detection;
+      sm_n_visited_at_prediction = inst->n_visited_at_prediction;
   }
 
   assert(inst->seqNum == in_flight.front()->seqNum);
@@ -132,7 +139,6 @@ void MemDepCounter::remove_comitted(const o3::DynInstPtr &inst){
     }
 
     cpu->cpuStats.smUops++;
-    bool is_memviolation = false;
 
     inst->effSeqNum = cpu->effGlobalSeqNum++;
 
@@ -143,13 +149,23 @@ void MemDepCounter::remove_comitted(const o3::DynInstPtr &inst){
               sm_n_visited == inst->n_visited &&
               sm_address == inst->effAddr){
                 cpu->cpuStats.smMemOrderViolations++;
-                is_memviolation = true;
+                inst->sm_violator = true;
+                TraceUID tuid = TraceUID( inst->pcState().instAddr(),
+                inst->n_visited);
 
                 DPRINTF(FYPDebug, "MemCounter SM violation: [sn:%llu] "
                 "[%lli:%lli] [%s] at address %llx \n", inst->seqNum,
                 inst->pcState().instAddr(),
                 inst->n_visited, inst->isLoad() ? "load" : "not load",
                 inst->effAddr );
+
+                if (sm_n_visited != sm_n_visited_at_prediction ||
+                  sm_dep_n_visited != sm_dep_n_visited_at_detection){
+                  DPRINTF(FYPDebug, "SM violation signature change:"
+                " Inst: [%lli:%lli] -> [%lli]; Dep: [%lli:%lli] -> [%lli]\n",
+                sm_pc, sm_n_visited, sm_n_visited_at_prediction,
+                sm_dep_pc, sm_dep_n_visited, sm_dep_n_visited_at_detection);
+                }
 
                   //Stats
                 if (inst->isLoad()){
@@ -187,7 +203,7 @@ void MemDepCounter::remove_comitted(const o3::DynInstPtr &inst){
       inst->effAddr >> 4));
     }
 
-    if (inst->isLoad() && !is_memviolation){
+    if (inst->isLoad() && !inst->sm_violator){
       if (inst->predictedDep != 0){
         if (inst_history.count(inst->predictedDep)){
           if (inst_history[inst->predictedDep] == inst->effAddr >> 4){

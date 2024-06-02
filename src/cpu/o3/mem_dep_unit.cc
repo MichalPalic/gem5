@@ -31,6 +31,7 @@
 #include <map>
 #include <memory>
 #include <vector>
+#include <algorithm>
 
 #include "base/compiler.hh"
 #include "base/debug.hh"
@@ -89,10 +90,10 @@ MemDepUnit::~MemDepUnit()
 }
 
 void
-MemDepUnit::init(const BaseO3CPUParams &params, ThreadID tid, CPU *cpu)
+MemDepUnit::init(const BaseO3CPUParams &params, ThreadID tid, CPU *_cpu)
 {
     DPRINTF(MemDepUnit, "Creating MemDepUnit %i object.\n",tid);
-
+    cpu = _cpu;
     _name = csprintf("%s.memDep%d", params.name, tid);
     id = tid;
 
@@ -188,7 +189,9 @@ MemDepUnit::insertBarrierSN(const DynInstPtr &barr_inst)
 
 void
 MemDepUnit::insert(const DynInstPtr &inst)
-{
+{   
+    inst->n_visited_at_prediction = inst->n_visited;
+
     ThreadID tid = inst->threadNumber;
 
     MemDepEntryPtr inst_entry = std::make_shared<MemDepEntry>(inst);
@@ -220,11 +223,31 @@ MemDepUnit::insert(const DynInstPtr &inst)
                                 std::begin(storeBarrierSNs),
                                 std::end(storeBarrierSNs));
     } else {
-        InstSeqNum dep = depPred.checkInst(inst->pcState().instAddr());
-        inst->predictedDep = dep;
 
-        if (dep != 0)
-            producing_stores.push_back(dep);
+        //Michal: hijack memory dependence predictor here
+        if (gem5::debug::MdpNodep){}
+        else if (cpu->mem_oracle.mode == OracleMode::Refine ||
+                cpu->mem_oracle.mode == OracleMode::Run ||
+                cpu->mem_oracle.mode == OracleMode::Barrier){
+            std::vector<InstSeqNum> deps = cpu->mem_oracle.checkInst(inst);
+
+            //Ensure that predicted dependencies are unique
+            for (auto dep : deps){
+                if (std::find(producing_stores.begin(),
+                    producing_stores.end(), dep) == producing_stores.end()) {
+                    producing_stores.push_back(dep);
+                }
+            }
+
+        } else{
+
+            InstSeqNum dep;
+            dep = depPred.checkInst(inst->pcState().instAddr());
+            inst->predictedDep = dep;
+
+            if (dep != 0)
+                producing_stores.push_back(dep);
+        }
     }
 
     std::vector<MemDepEntryPtr> store_entries;
@@ -441,6 +464,16 @@ MemDepUnit::completeInst(const DynInstPtr &inst)
         assert(hasLoadBarrier());
         loadBarrierSNs.erase(barr_sn);
     }
+
+    //Handle barrier assignment by oracle
+    if (storeBarrierSNs.count(inst->seqNum)){
+        storeBarrierSNs.erase(inst->seqNum);
+    }
+
+    if (loadBarrierSNs.count(inst->seqNum)){
+        loadBarrierSNs.erase(inst->seqNum);
+    }
+
     if (debug::MemDepUnit) {
         const char *barrier_type = nullptr;
         if (inst->isWriteBarrier() && inst->isReadBarrier())

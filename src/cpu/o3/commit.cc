@@ -992,6 +992,9 @@ Commit::commitInsts()
                 //Update memory dependence counting state machine
                 cpu->mem_dep_counter.remove_comitted(head_inst);
 
+                //Michal: Commit successful instructions
+                cpu->mem_oracle.record_comitted(head_inst);
+
                 DPRINTF(FYPDebug,"Commit ok: %s %llu:%llu, seqnum %llu,"
                 "effseqnum %llu, effadr %llx, tid %llu\n",
                 head_inst->staticInst->mnemonic,

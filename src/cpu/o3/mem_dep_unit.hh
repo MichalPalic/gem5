@@ -53,6 +53,8 @@
 #include "cpu/o3/limits.hh"
 #include "cpu/o3/store_set.hh"
 #include "debug/MemDepUnit.hh"
+#include "debug/MdpNodep.hh"
+#include "debug/MemOracle.hh"
 
 namespace gem5
 {
@@ -89,6 +91,9 @@ class InstructionQueue;
  */
 class MemDepUnit
 {
+  public:
+    CPU* cpu;
+
   protected:
     std::string _name;
 
@@ -208,6 +213,9 @@ class MemDepUnit
         bool completed = false;
         /** If the instruction is squashed. */
         bool squashed = false;
+
+        //Allow checking for previous branches
+        DynInstPtr last_inst = nullptr;
 
         /** For debugging. */
 #ifdef GEM5_DEBUG

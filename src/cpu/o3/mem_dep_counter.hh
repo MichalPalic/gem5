@@ -31,10 +31,17 @@ namespace gem5
     //State machine vars
     SmState sm_state = SmState::Idle;
     Addr sm_pc = 0;
-    uint64_t sm_n_visited = 0;
     Addr sm_address = 0;
     uint64_t sm_seqnum = 0;
     uint64_t sm_dep = 0;
+    uint64_t sm_n_visited = 0;
+    uint64_t sm_n_visited_at_detection = 0;
+    uint64_t sm_n_visited_at_prediction = 0;
+
+    Addr sm_dep_pc = 0;
+    uint64_t sm_dep_n_visited = 0;
+    uint64_t sm_dep_n_visited_at_detection = 0;
+    Addr sm_dep_address = 0;
 
     o3::CPU* cpu;
 
@@ -71,6 +78,12 @@ struct TraceUID
     {
       return (pc == other.pc && n_visited == other.n_visited);
     }
+
+  bool operator<(const TraceUID &other) const
+    {
+      return pc == other.pc ? n_visited < other.n_visited : pc < other.pc;
+    }
+
 };
 
   template<>
