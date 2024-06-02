@@ -544,6 +544,29 @@ def run(options, root, testsys, cpu_class):
                 switch_cpus[
                     i
                 ].branchPred.indirectBranchPred = IndirectBPClass()
+
+            # Handles error if not O3
+            try:
+                if options.lfst_size is not None:
+                    switch_cpus[i].LFSTSize = options.lfst_size
+
+                if options.ssit_size is not None:
+                    switch_cpus[i].SSITSize = options.ssit_size
+
+                if options.store_set_clear_period is not None:
+                    switch_cpus[
+                        i
+                    ].store_set_clear_period = options.store_set_clear_period
+
+                if options.lsq_dep_check_shift is not None:
+                    switch_cpus[
+                        i
+                    ].LSQDepCheckShift = options.lsq_dep_check_shift
+
+                print("SwitchCpu is O3, store set params set")
+            except:
+                print("SwitchCpu not O3, failed to set store set params")
+
             switch_cpus[i].createThreads()
 
         # If elastic tracing is enabled attach the elastic trace probe

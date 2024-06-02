@@ -359,16 +359,35 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
                       fetch traces using elastic trace probe.""",
     )
 
-    #Add store set knobs
-    parser.add_argument("--lfst-size", type=int, default=None,
-                        help="""Size of store set lfst""")
+    # Add store set knobs
+    parser.add_argument(
+        "--lfst-size",
+        type=int,
+        default=None,
+        help="""Size of store set lfst""",
+    )
 
-    parser.add_argument("--ssit-size", type=int, default=None,
-                        help="""Size of store set ssit""")
+    parser.add_argument(
+        "--ssit-size",
+        type=int,
+        default=None,
+        help="""Size of store set ssit""",
+    )
 
-    parser.add_argument("--store-set-clear-period", type=int, default=None,
-                        help="""Duration of clear period""")
-    
+    parser.add_argument(
+        "--store-set-clear-period",
+        type=int,
+        default=None,
+        help="""Duration of clear period""",
+    )
+
+    parser.add_argument(
+        "--lsq-dep-check-shift",
+        type=int,
+        default=None,
+        help="""Granularity of depchecking""",
+    )
+
     # Trace file paths input to trace probe in a capture simulation and input
     # to Trace CPU in a replay simulation
     parser.add_argument(

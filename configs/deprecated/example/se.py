@@ -262,14 +262,21 @@ for i in range(np):
         )
         system.cpu[i].branchPred.indirectBranchPred = indirectBPClass()
 
-    if args.lfst_size is not None:
-        system.cpu[i].LFSTSize = args.lfst_size
+    # Handles error if not O3
+    try:
+        if args.lfst_size is not None:
+            system.cpu[i].LFSTSize = args.lfst_size
 
-    if args.ssit_size is not None:
-        system.cpu[i].SSITSize = args.ssit_size
+        if args.ssit_size is not None:
+            system.cpu[i].SSITSize = args.ssit_size
 
-    if args.store_set_clear_period is not None:
-        system.cpu[i].store_set_clear_period = args.store_set_clear_period
+        if args.store_set_clear_period is not None:
+            system.cpu[i].store_set_clear_period = args.store_set_clear_period
+
+        if args.lsq_dep_check_shift is not None:
+            system.cpu[i].LSQDepCheckShift = args.lsq_dep_check_shift
+    except:
+        print("TMPCpu not O3, failed to set store set params")
 
     system.cpu[i].createThreads()
 
