@@ -398,6 +398,8 @@ void MemOracle::flush_full_buffer() {
     out_buf += std::to_string(std::get<5>(elem));
     out_buf += ',';
     out_buf += std::to_string(std::get<6>(elem));
+    out_buf += ',';
+    out_buf += std::to_string(std::get<7>(elem));
     out_buf += '\n';
   }
 
