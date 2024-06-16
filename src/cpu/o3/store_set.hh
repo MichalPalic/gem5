@@ -69,17 +69,20 @@ class StoreSet
     StoreSet() { };
 
     /** Creates store set predictor with given table sizes. */
-    StoreSet(uint64_t clear_period, int SSIT_size, int LFST_size);
+    StoreSet(uint64_t clear_period, int SSIT_size, int LFST_size,
+      int _branch_hist_length);
 
     /** Default destructor. */
     ~StoreSet();
 
     /** Initializes the store set predictor with the given table sizes. */
-    void init(uint64_t clear_period, int SSIT_size, int LFST_size);
+    void init(uint64_t clear_period, int SSIT_size, int LFST_size,
+      int _branch_hist_length);
 
     /** Records a memory ordering violation between the younger load
      * and the older store. */
-    void violation(Addr store_PC, Addr load_PC);
+    void violation(Addr store_PC, InstSeqNum store_seq_num, Addr load_PC,
+      InstSeqNum load_seq_num);
 
     /** Clears the store set predictor every so often so that all the
      * entries aren't used and stores are constantly predicted as
@@ -100,7 +103,7 @@ class StoreSet
      * any store.  @return Returns the sequence number of the store
      * instruction this PC is dependent upon.  Returns 0 if none.
      */
-    InstSeqNum checkInst(Addr PC);
+    InstSeqNum checkInst(Addr PC, InstSeqNum seq_num);
 
     /** Records this PC/sequence number as issued. */
     void issued(Addr issued_PC, InstSeqNum issued_seq_num, bool is_store);
@@ -114,10 +117,55 @@ class StoreSet
     /** Debug function to dump the contents of the store list. */
     void dump();
 
-  private:
+    /*Branch tracking circular buffers*/
+    uint32_t branch_hist_length = 0;
+    std::map<uint64_t, bool> global_branches;
+
+    private:
     /** Calculates the index into the SSIT based on the PC. */
     inline int calcIndex(Addr PC)
     { return (PC >> offsetBits) & indexMask; }
+
+    inline int calcIndexWBranch(Addr PC, InstSeqNum seq_num)
+    {
+    //Iterate over branch history and find the n last branches that came just
+    //before sequence number of inst. Otherwise the signature changes at
+    //runtime
+
+    //Limited to 64bit size rn
+    assert(branch_hist_length <= 64);
+
+    uint64_t branch_state = 0;
+
+    std::reverse_iterator<std::map<uint64_t,bool>::const_iterator> target_itr;
+    //Start with the newest branch and iterate until the branch just before
+    //our instruction is found
+    for (target_itr = global_branches.crbegin();
+      target_itr != global_branches.crend(); target_itr++){
+        if ((*target_itr).first < seq_num){
+          break;
+        }
+    }
+
+    //Now fill a uint with branch outcomes
+    //I want the most recent and thus strongest correlated branch to
+    //spread entries as far as possible
+
+    for (int i = 0; i < branch_hist_length; i++){
+      if (target_itr != global_branches.crend()){
+        branch_state |= (uint64_t((*target_itr).second) << i);
+      }
+    }
+
+    //Shift so that relevant part of branch vetor is alligned with the upper
+    //end of the relevevant bits for indexing
+
+    uint32_t upper_shift = 32U - __builtin_clz(indexMask);
+    branch_state = branch_state << upper_shift;
+
+    uint32_t calculated_index = ((PC >> offsetBits)^ branch_state) & indexMask;
+    return calculated_index;
+    }
 
     /** Calculates a Store Set ID based on the PC. */
     inline SSID calcSSID(Addr PC)
@@ -154,7 +202,7 @@ class StoreSet
     int LFSTSize;
 
     /** Mask to obtain the index. */
-    int indexMask;
+    uint32_t indexMask;
 
     // HACK: Hardcoded for now.
     int offsetBits;

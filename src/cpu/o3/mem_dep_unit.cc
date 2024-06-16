@@ -57,7 +57,7 @@ MemDepUnit::MemDepUnit() : iqPtr(NULL), stats(nullptr) {}
 MemDepUnit::MemDepUnit(const BaseO3CPUParams &params)
     : _name(params.name + ".memdepunit"),
       depPred(params.store_set_clear_period, params.SSITSize,
-              params.LFSTSize),
+              params.LFSTSize, params.SSITBranchHistoryLength),
       iqPtr(NULL),
       stats(nullptr)
 {
@@ -97,7 +97,7 @@ MemDepUnit::init(const BaseO3CPUParams &params, ThreadID tid, CPU *cpu)
     id = tid;
 
     depPred.init(params.store_set_clear_period, params.SSITSize,
-            params.LFSTSize);
+            params.LFSTSize, params.SSITBranchHistoryLength);
 
     std::string stats_group_name = csprintf("MemDepUnit__%i", tid);
     cpu->addStatGroup(stats_group_name.c_str(), &stats);
@@ -220,7 +220,8 @@ MemDepUnit::insert(const DynInstPtr &inst)
                                 std::begin(storeBarrierSNs),
                                 std::end(storeBarrierSNs));
     } else {
-        InstSeqNum dep = depPred.checkInst(inst->pcState().instAddr());
+        InstSeqNum dep = depPred.checkInst(inst->pcState().instAddr(),
+            inst->seqNum);
         inst->predictedDep = dep;
 
         if (dep != 0)
@@ -577,8 +578,8 @@ MemDepUnit::violation(const DynInstPtr &store_inst,
             " load: %#x, store: %#x\n", violating_load->pcState().instAddr(),
             store_inst->pcState().instAddr());
     // Tell the memory dependence unit of the violation.
-    depPred.violation(store_inst->pcState().instAddr(),
-            violating_load->pcState().instAddr());
+    depPred.violation(store_inst->pcState().instAddr(), store_inst->seqNum,
+            violating_load->pcState().instAddr(), violating_load->seqNum);
 }
 
 void

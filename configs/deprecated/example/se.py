@@ -275,6 +275,12 @@ for i in range(np):
 
         if args.lsq_dep_check_shift is not None:
             system.cpu[i].LSQDepCheckShift = args.lsq_dep_check_shift
+
+        if args.ssit_branch_history_length is not None:
+            system.cpu[
+                i
+            ].SSITBranchHistoryLength = args.ssit_branch_history_length
+
     except:
         print("TMPCpu not O3, failed to set store set params")
 

@@ -594,6 +594,14 @@ InstructionQueue::insert(const DynInstPtr &new_inst)
     if (new_inst->isMemRef()) {
         memDepUnit[new_inst->threadNumber].insert(new_inst);
     } else {
+
+        //Push speculative branch state to MDP
+        if (new_inst->isCondCtrl()){
+            memDepUnit[new_inst->threadNumber].depPred.global_branches.insert(
+                std::pair<uint64_t, bool>(
+                new_inst->seqNum, new_inst->readPredTaken()));
+        }
+
         addIfReady(new_inst);
     }
 

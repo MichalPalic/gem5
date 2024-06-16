@@ -39,8 +39,9 @@ namespace gem5
 namespace o3
 {
 
-StoreSet::StoreSet(uint64_t clear_period, int _SSIT_size, int _LFST_size)
-    : clearPeriod(clear_period), SSITSize(_SSIT_size), LFSTSize(_LFST_size)
+StoreSet::StoreSet(uint64_t clear_period, int _SSIT_size, int _LFST_size,
+    int _branch_hist_length): branch_hist_length(_branch_hist_length),
+    clearPeriod(clear_period), SSITSize(_SSIT_size), LFSTSize(_LFST_size)
 {
     DPRINTF(StoreSet, "StoreSet: Creating store set object.\n");
     printf("StoreSet: SSIT size: %i, LFST size: %i, Clear period: %i.\n",
@@ -75,6 +76,7 @@ StoreSet::StoreSet(uint64_t clear_period, int _SSIT_size, int _LFST_size)
     offsetBits = 2;
 
     memOpsPred = 0;
+
 }
 
 StoreSet::~StoreSet()
@@ -82,7 +84,8 @@ StoreSet::~StoreSet()
 }
 
 void
-StoreSet::init(uint64_t clear_period, int _SSIT_size, int _LFST_size)
+StoreSet::init(uint64_t clear_period, int _SSIT_size, int _LFST_size,
+    int _branch_hist_length)
 {
     SSITSize = _SSIT_size;
     LFSTSize = _LFST_size;
@@ -117,10 +120,19 @@ StoreSet::init(uint64_t clear_period, int _SSIT_size, int _LFST_size)
 
 
 void
-StoreSet::violation(Addr store_PC, Addr load_PC)
+StoreSet::violation(Addr store_PC, InstSeqNum store_seq_num, Addr load_PC,
+    InstSeqNum load_seq_num)
 {
-    int load_index = calcIndex(load_PC);
-    int store_index = calcIndex(store_PC);
+    int load_index;
+    int store_index;
+
+    if (branch_hist_length != 0){
+        load_index = calcIndexWBranch(load_PC, load_seq_num);
+        store_index = calcIndexWBranch(store_PC, store_seq_num);
+    }else{
+        load_index = calcIndex(load_PC);
+        store_index = calcIndex(store_PC);
+    }
 
     assert(load_index < SSITSize && store_index < SSITSize);
 
@@ -212,7 +224,13 @@ StoreSet::insertLoad(Addr load_PC, InstSeqNum load_seq_num)
 void
 StoreSet::insertStore(Addr store_PC, InstSeqNum store_seq_num, ThreadID tid)
 {
-    int index = calcIndex(store_PC);
+    int index;
+
+    if (branch_hist_length != 0){
+        index = calcIndexWBranch(store_PC, store_seq_num);
+    }else{
+        index = calcIndex(store_PC);
+    }
 
     int store_SSID;
 
@@ -240,9 +258,15 @@ StoreSet::insertStore(Addr store_PC, InstSeqNum store_seq_num, ThreadID tid)
 }
 
 InstSeqNum
-StoreSet::checkInst(Addr PC)
+StoreSet::checkInst(Addr PC , InstSeqNum seq_num)
 {
-    int index = calcIndex(PC);
+    int index;
+
+    if (branch_hist_length != 0){
+        index = calcIndexWBranch(PC, seq_num);
+    }else{
+        index = calcIndex(PC);
+    }
 
     int inst_SSID;
 
@@ -282,7 +306,13 @@ StoreSet::issued(Addr issued_PC, InstSeqNum issued_seq_num, bool is_store)
         return;
     }
 
-    int index = calcIndex(issued_PC);
+    int index;
+
+    if (branch_hist_length != 0){
+        index = calcIndexWBranch(issued_PC, issued_seq_num);
+    }else{
+        index = calcIndex(issued_PC);
+    }
 
     int store_SSID;
 
@@ -337,6 +367,16 @@ StoreSet::squash(InstSeqNum squashed_num, ThreadID tid)
             storeList.erase(store_list_it++);
         } else if (!validLFST[idx] && younger) {
             storeList.erase(store_list_it++);
+        }
+    }
+
+    //Squash global history
+    std::map<uint64_t, bool>::iterator itr = global_branches.begin();
+    while (itr != global_branches.end()) {
+        if ((*itr).first >= squashed_num) {
+        itr = global_branches.erase(itr);
+        } else {
+        ++itr;
         }
     }
 }

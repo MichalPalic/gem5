@@ -37,7 +37,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # CPU configuration: Luke XL
-#--l1d_size=256KiB --l1i_size=256KiB --l2_size=4MB
+# --l1d_size=256KiB --l1i_size=256KiB --l2_size=4MB
 
 from m5.defines import buildEnv
 from m5.objects.BaseCPU import BaseCPU
@@ -157,6 +157,7 @@ class BaseO3CPU(BaseCPU):
     )
     LFSTSize = Param.Unsigned(192, "Last fetched store table size")
     SSITSize = Param.Unsigned(192, "Store set ID table size")
+    SSITBranchHistoryLength = Param.Unsigned(0, "Store set ID table size")
 
     numRobs = Param.Unsigned(1, "Number of Reorder Buffers")
 

@@ -375,6 +375,13 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
     )
 
     parser.add_argument(
+        "--ssit-branch-history-length",
+        type=int,
+        default=None,
+        help="""Branch history length to be tracked""",
+    )
+
+    parser.add_argument(
         "--store-set-clear-period",
         type=int,
         default=None,

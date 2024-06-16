@@ -563,6 +563,13 @@ def run(options, root, testsys, cpu_class):
                         i
                     ].LSQDepCheckShift = options.lsq_dep_check_shift
 
+                if options.ssit_branch_history_length is not None:
+                    switch_cpus[
+                        i
+                    ].SSITBranchHistoryLength = (
+                        options.ssit_branch_history_length
+                    )
+
                 print("SwitchCpu is O3, store set params set")
             except:
                 print("SwitchCpu not O3, failed to set store set params")
