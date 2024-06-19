@@ -597,6 +597,17 @@ InstructionQueue::insert(const DynInstPtr &new_inst)
 
         //Push speculative branch state to MDP
         if (new_inst->isCondCtrl()){
+
+            //Remove if we're at capacity
+            if (memDepUnit[new_inst->threadNumber]
+                .depPred.global_branches.size() >= 512){
+                auto b_itr = memDepUnit[new_inst->threadNumber]
+                    .depPred.global_branches.begin();
+
+                memDepUnit[new_inst->threadNumber]
+                .depPred.global_branches.erase((*b_itr).first);
+            }
+
             memDepUnit[new_inst->threadNumber].depPred.global_branches.insert(
                 std::pair<uint64_t, bool>(
                 new_inst->seqNum, new_inst->readPredTaken()));

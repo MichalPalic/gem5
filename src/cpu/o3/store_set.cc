@@ -90,6 +90,7 @@ StoreSet::init(uint64_t clear_period, int _SSIT_size, int _LFST_size,
     SSITSize = _SSIT_size;
     LFSTSize = _LFST_size;
     clearPeriod = clear_period;
+    branch_hist_length = _branch_hist_length;
 
     DPRINTF(StoreSet, "StoreSet: Creating store set object.\n");
     printf("StoreSet: SSIT size: %i, LFST size: %i, Clear period: %i.\n",
@@ -141,7 +142,13 @@ StoreSet::violation(Addr store_PC, InstSeqNum store_seq_num, Addr load_PC,
 
     if (!valid_load_SSID && !valid_store_SSID) {
         // Calculate a new SSID here.
-        SSID new_set = calcSSID(load_PC);
+        SSID new_set;
+
+        if (branch_hist_length != 0){
+            new_set = calcSSIDWBranch(load_PC, load_seq_num);
+        }else{
+            new_set = calcSSID(load_PC);
+        }
 
         validSSIT[load_index] = true;
 

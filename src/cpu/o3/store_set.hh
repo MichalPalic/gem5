@@ -153,14 +153,16 @@ class StoreSet
 
     for (int i = 0; i < branch_hist_length; i++){
       if (target_itr != global_branches.crend()){
-        branch_state |= (uint64_t((*target_itr).second) << i);
+        if ((*target_itr).second){
+          branch_state |= (1UL << i);
+        }
       }
     }
 
     //Shift so that relevant part of branch vetor is alligned with the upper
     //end of the relevevant bits for indexing
 
-    uint32_t upper_shift = 32U - __builtin_clz(indexMask);
+    uint32_t upper_shift = 31U - __builtin_clz(indexMask);
     branch_state = branch_state << upper_shift;
 
     uint32_t calculated_index = ((PC >> offsetBits)^ branch_state) & indexMask;
@@ -170,6 +172,41 @@ class StoreSet
     /** Calculates a Store Set ID based on the PC. */
     inline SSID calcSSID(Addr PC)
     { return ((PC ^ (PC >> 10)) % LFSTSize); }
+
+    /** Calculates a Store Set ID based on the PC. */
+    inline SSID calcSSIDWBranch(Addr PC, InstSeqNum seq_num){
+      //Iterate over branch history and find the n last branches that came just
+    //before sequence number of inst. Otherwise the signature changes at
+    //runtime
+
+    //Limited to 64bit size rn
+    assert(branch_hist_length <= 64);
+
+    uint64_t branch_state = 0;
+
+    std::reverse_iterator<std::map<uint64_t,bool>::const_iterator> target_itr;
+    //Start with the newest branch and iterate until the branch just before
+    //our instruction is found
+    for (target_itr = global_branches.crbegin();
+      target_itr != global_branches.crend(); target_itr++){
+        if ((*target_itr).first < seq_num){
+          break;
+        }
+    }
+
+    //Now fill a uint with branch outcomes
+    //I want the most recent and thus strongest correlated branch to
+    //spread entries as far as possible
+
+    for (int i = 0; i < branch_hist_length; i++){
+      if (target_itr != global_branches.crend()){
+        if ((*target_itr).second){
+          branch_state |= (1UL << i);
+        }
+      }
+    }
+
+    return (((PC ^ (PC >> 10)) ^ branch_state) % LFSTSize); }
 
     /** The Store Set ID Table. */
     std::vector<SSID> SSIT;
